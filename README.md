@@ -122,10 +122,28 @@ log.slow.query.total-ms=1000
 logging.file.path=/var/log/ims
 ```
 
----
 
+---
+## ⚠️ SqlSessionFactoryBean 수동 등록 시 필수 설정 안내
+
+본 프로젝트는 SQL Trace 로그 수집을 위해 MyBatis Interceptor(`SqlTraceInterceptor`)를 사용합니다.
+
+Spring Boot 자동 설정을 사용하지 않고,  
+`SqlSessionFactoryBean`을 **수동으로 생성하여 등록하는 경우**  
+MyBatis Interceptor는 자동으로 적용되지 않습니다.
+
+따라서 아래와 같이 `SqlTraceInterceptor`를 **반드시 직접 설정해야 합니다**.
+
+```java
+SqlSessionFactoryBean sqlSessionFactoryBean = new SqlSessionFactoryBean();
+Interceptor[] sqlInterceptor = { new SqlTraceInterceptor() };
+sqlSessionFactoryBean.setPlugins(sqlInterceptor);
+```
+
+---
 ## 4. 주의 사항
 
-- 반드시 `logback-spring.xml` 사용
+- 반드시 `logback.xml` 사용
+- Mybatis 수동설정시, setPlugin으로 interceptor 추가 필요 (SqlTraceInteceptor)
 - Logger 이름 변경 금지
 - `%X{traceId}` 제거 금지

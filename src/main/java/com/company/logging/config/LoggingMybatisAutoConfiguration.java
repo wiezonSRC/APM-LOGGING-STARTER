@@ -22,14 +22,10 @@ import org.mybatis.spring.boot.autoconfigure.ConfigurationCustomizer;
 )
 public class LoggingMybatisAutoConfiguration {
 
-    static {
-        System.out.println(">>> LoggingMybatisAutoConfiguration LOADED");
-    }
 
     @Bean
     @ConditionalOnMissingBean
     public SqlTraceInterceptor sqlTraceInterceptor() {
-        System.out.println(">>> SqlTraceInterceptor BEAN CREATED");
         return new SqlTraceInterceptor();
     }
 
@@ -37,7 +33,6 @@ public class LoggingMybatisAutoConfiguration {
     public ConfigurationCustomizer sqlTraceConfigurationCustomizer(
             SqlTraceInterceptor interceptor
     ) {
-        System.out.println(">>> SqlTraceInterceptor ADD INTERCEPTOR");
         return configuration -> {
             configuration.addInterceptor(interceptor);
         };
