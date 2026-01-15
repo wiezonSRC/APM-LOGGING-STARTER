@@ -158,4 +158,23 @@ class LoggingStarterIntegrationTest {
         assertThat(output.getOut()).contains("[API_PROD]");
         assertThat(output.getOut()).contains("uri=/download");
     }
+
+    @Test
+    @DisplayName("HTML 호출")
+    void testHtml(){
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.TEXT_PLAIN);
+
+        HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/html",
+                HttpMethod.GET,
+                entity,
+                String.class
+        );
+
+        assertThat(response.getBody()).contains("<html>");
+
+    }
 }

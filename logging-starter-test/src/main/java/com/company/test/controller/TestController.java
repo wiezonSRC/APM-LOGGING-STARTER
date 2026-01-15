@@ -49,4 +49,10 @@ public class TestController {
                 .contentLength(content.length())
                 .body(resource);
     }
+
+
+    @GetMapping(value = "/html", produces = MediaType.TEXT_HTML_VALUE)
+    public String html() {
+        return "<html><body><h1>Hello World</h1><script>console.log('hi');</script></body></html>";
+    }
 }
