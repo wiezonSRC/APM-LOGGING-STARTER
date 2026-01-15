@@ -9,12 +9,12 @@ import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.core.io.ByteArrayResource;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -29,10 +29,22 @@ class LoggingStarterIntegrationTest {
     @DisplayName("SELECT 1 테스트")
     void testLogging(CapturedOutput output) {
         // Act
-        String response = restTemplate.getForObject("/test", String.class);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
 
+        HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/test",
+                HttpMethod.GET,
+                entity,
+                String.class
+        );
+
+        String body= response.getBody();
         // Assert Response
-        assertThat(response).contains("Result: 1");
+        assertThat(body).contains("Result: 1");
 
         // Assert Logs
         assertThat(output.getOut()).contains("[API_PROD]");
@@ -48,10 +60,23 @@ class LoggingStarterIntegrationTest {
     void testLoggingWithParam(CapturedOutput output) {
         // Act
         String paramValue = "testParamValue";
-        String response = restTemplate.getForObject("/test-param?value=" + paramValue, String.class);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+
+        HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/test-param?value={value}",
+                HttpMethod.GET,
+                entity,
+                String.class,
+                paramValue
+        );
+
+        String body = response.getBody();
 
         // Assert Response
-        assertThat(response).contains("Result with param: " + paramValue);
+        assertThat(body).contains("Result with param: " + paramValue);
 
         // Assert Logs
         assertThat(output.getOut()).contains("[API_PROD]");
@@ -100,15 +125,36 @@ class LoggingStarterIntegrationTest {
     @Test
     @DisplayName("파일 다운로드 테스트")
     void testFileDownload(CapturedOutput output) {
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(List.of(MediaType.APPLICATION_OCTET_STREAM));
+
+        HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+
+
         // Act
-        ResponseEntity<String> response = restTemplate.getForEntity("/download", String.class);
+        ResponseEntity<byte[]> response = restTemplate.exchange(
+                "/download",
+                HttpMethod.GET,
+                entity,
+                byte[].class
+        );
 
         // Assert Response
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
-        assertThat(response.getHeaders().getContentDisposition().getFilename()).isEqualTo("download.txt");
-        assertThat(response.getBody()).isEqualTo("This is a downloadable file content.");
+        assertThat(response.getHeaders().getContentType())
+                .isEqualTo(MediaType.APPLICATION_OCTET_STREAM);
 
-        // Assert Logs
+        assertThat(response.getHeaders()
+                .getContentDisposition()
+                .getFilename())
+                .isEqualTo("download.txt");
+
+        String body = new String(response.getBody(), StandardCharsets.UTF_8);
+        assertThat(body).isEqualTo("This is a downloadable file content.");
+
+        // Assert Logs (메타 로그만)
         assertThat(output.getOut()).contains("[API_PROD]");
         assertThat(output.getOut()).contains("uri=/download");
     }

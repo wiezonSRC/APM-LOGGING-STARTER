@@ -45,7 +45,7 @@ public class TestController {
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"download.txt\"")
-                .contentType(MediaType.TEXT_PLAIN)
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .contentLength(content.length())
                 .body(resource);
     }
