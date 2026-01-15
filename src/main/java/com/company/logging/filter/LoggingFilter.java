@@ -17,7 +17,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -58,52 +57,107 @@ public class LoggingFilter extends OncePerRequestFilter {
         SqlTraceContextHolder.init();
 
         RequestWrapper req = new RequestWrapper(request);
-        ResponseWrapper res = new ResponseWrapper(response);
+        boolean binaryRequest = isBinaryRequest(req);
 
         long start = System.currentTimeMillis();
         Exception exception = null;
+        ResponseWrapper res = null;
+
 
         try{
-            filterChain.doFilter(req, res);
+            // 파일 요청일경우, response wrapper skip
+            if(binaryRequest){
+                res = new ResponseWrapper(response);
+                filterChain.doFilter(req, response);
+            }else{
+                filterChain.doFilter(req, res);
+            }
+
         }catch(Exception e){
             exception = e;
             throw e;
         }finally{
+
             long elapsed = System.currentTimeMillis() - start;
 
-            logProd(req, res, elapsed, exception);
+            if(!binaryRequest && res != null && !isBinaryResponse(res)){
 
-            if(TraceContextHolder.isTrace()){
-                logTrace(req, res, elapsed, exception);
+                logProd(req, res, elapsed, exception);
+
+                if(TraceContextHolder.isTrace()){
+                    logTrace(req, res, elapsed, exception);
+                }
+                if(TraceContextHolder.isDebug()){
+                    logDebug(req, res, elapsed, exception);
+                }
+
+
+                //SLOW 쿼리는 공통적으로 기입
+                SqlTraceContext ctx = SqlTraceContextHolder.get();
+                if (ctx != null && ctx.getTotalElapsed() > queryTotalMs) {
+
+                    ctx.getTraces().stream()
+                            .filter(t -> t.getElapsed() > queryMs)
+                            .forEach(t ->
+                                    logger.warn("[SLOW_SQL] ({}) sqlId={} elapsed={}ms sqlParam={} sql={}",
+                                            MDC.get("traceId"),
+                                            t.getSqlId(),
+                                            t.getElapsed(),
+                                            t.getSqlParam(),
+                                            prettySqlLog(t.getSql()))
+                            );
+                }
+
+
+                response.getOutputStream().write(res.getBody());
+            }else{
+                logger.info("[API_PROD] ({}) uri={} method={} status={} elapsed={}ms",
+                        MDC.get("traceId"),
+                        request.getRequestURI(),
+                        request.getMethod(),
+                        response.getStatus(),
+                        elapsed
+                );
             }
-            if(TraceContextHolder.isDebug()){
-                logDebug(req, res, elapsed, exception);
-            }
-
-
-            //SLOW 쿼리는 공통적으로 기입
-            SqlTraceContext ctx = SqlTraceContextHolder.get();
-            if (ctx != null && ctx.getTotalElapsed() > queryTotalMs) {
-
-                ctx.getTraces().stream()
-                        .filter(t -> t.getElapsed() > queryMs)
-                        .forEach(t ->
-                                logger.warn("[SLOW_SQL] ({}) sqlId={} elapsed={}ms sqlParam={} sql={}",
-                                        MDC.get("traceId"),
-                                        t.getSqlId(),
-                                        t.getElapsed(),
-                                        t.getSqlParam(),
-                                        prettySqlLog(t.getSql()))
-                        );
-            }
-
-
-            response.getOutputStream().write(res.getBody());
 
             SqlTraceContextHolder.clear();
             TraceContextHolder.clear();
             MDC.clear();
         }
+    }
+
+    private boolean isBinaryRequest(HttpServletRequest req){
+        String accept = req.getHeader("Accept");
+        if(accept != null && accept.contains("application/octet-stream")) {
+            return true;
+        }
+
+        String contentType = req.getContentType();
+        if(contentType != null && contentType.contains("multipart/form-data")){
+            return true;
+        }
+
+        // 다운로드 API가 GET이고 body 없음 + range 가능성
+        String range = req.getHeader("Range");
+        if (range != null) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private boolean isBinaryResponse(ResponseWrapper res){
+        String ct = res.getContentType();
+        if(ct != null && !isTextContent(ct)){
+            return true;
+        }
+
+        String disposition = res.getHeader("Content-Disposition");
+        if(disposition != null){
+            return true;
+        }
+
+        return false;
     }
 
     private boolean isTextContent(String contentType){
