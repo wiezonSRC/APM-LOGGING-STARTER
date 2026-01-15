@@ -67,8 +67,49 @@ public class ResponseWrapper extends HttpServletResponseWrapper {
 
         if (writer == null) {
             Charset charset = Charset.forName(getCharacterEncoding());
-            writer = new PrintWriter(new OutputStreamWriter(capture, charset));
+
+            PrintWriter originalWriter = super.getWriter();
+
+            writer = new PrintWriter(new OutputStreamWriter(capture, charset)) {
+
+                @Override
+                public void write(int c) {
+                    originalWriter.write(c);
+                    if (capture.size() < MAX_CAPTURE_SIZE) {
+                        super.write(c);
+                    }
+                }
+
+                @Override
+                public void write(char[] buf, int off, int len) {
+                    originalWriter.write(buf, off, len);
+                    if (capture.size() < MAX_CAPTURE_SIZE) {
+                        super.write(buf, off, len);
+                    }
+                }
+
+                @Override
+                public void write(String s, int off, int len) {
+                    originalWriter.write(s, off, len);
+                    if (capture.size() < MAX_CAPTURE_SIZE) {
+                        super.write(s, off, len);
+                    }
+                }
+
+                @Override
+                public void flush() {
+                    originalWriter.flush();
+                    super.flush();
+                }
+
+                @Override
+                public void close() {
+                    originalWriter.close();
+                    super.close();
+                }
+            };
         }
+
         return writer;
     }
 

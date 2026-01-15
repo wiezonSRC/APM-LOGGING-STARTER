@@ -20,7 +20,6 @@ import org.slf4j.MDC;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
