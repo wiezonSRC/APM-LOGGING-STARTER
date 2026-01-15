@@ -109,7 +109,6 @@ public class LoggingFilter extends OncePerRequestFilter {
                 }
 
 
-                response.getOutputStream().write(res.getBody());
             }else{
                 logger.info("[API_PROD] ({}) uri={} method={} status={} elapsed={}ms",
                         MDC.get("traceId"),

@@ -14,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 
 public class ResponseWrapper extends HttpServletResponseWrapper {
 
+    private static final int MAX_CAPTURE_SIZE = 1024 * 1024; // 1MB
     private final ByteArrayOutputStream capture = new ByteArrayOutputStream();
     private ServletOutputStream outputStream;
     private PrintWriter writer;
@@ -30,22 +31,27 @@ public class ResponseWrapper extends HttpServletResponseWrapper {
         }
 
         if (outputStream == null) {
+            ServletOutputStream original = super.getOutputStream();
+
             outputStream = new ServletOutputStream() {
 
                 @Override
-                public void write(int b) {
-                    capture.write(b);
+                public void write(int b) throws IOException{
+                    original.write(b);
+                    if(capture.size() < MAX_CAPTURE_SIZE){
+                        capture.write(b);
+                    }
                 }
 
                 @Override
                 public boolean isReady() {
-                    return true;
+                    return original.isReady();
                 }
 
 
                 @Override
                 public void setWriteListener(WriteListener writeListener) {
-                    // no-op
+                    original.setWriteListener(writeListener);
                 }
             };
         }
