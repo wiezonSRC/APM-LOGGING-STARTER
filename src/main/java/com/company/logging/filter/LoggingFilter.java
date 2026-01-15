@@ -20,6 +20,7 @@ import org.slf4j.MDC;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
@@ -66,7 +67,7 @@ public class LoggingFilter extends OncePerRequestFilter {
 
         try{
             // 파일 요청일경우, response wrapper skip
-            if(binaryRequest){
+            if(!binaryRequest){
                 res = new ResponseWrapper(response);
                 filterChain.doFilter(req, res);
             }else{
@@ -80,8 +81,7 @@ public class LoggingFilter extends OncePerRequestFilter {
 
             long elapsed = System.currentTimeMillis() - start;
 
-            if(!binaryRequest && res != null && !isBinaryResponse(res)){
-
+            if(res != null && !isBinaryResponse(res)){
                 logProd(req, res, elapsed, exception);
 
                 if(TraceContextHolder.isTrace()){
@@ -125,7 +125,7 @@ public class LoggingFilter extends OncePerRequestFilter {
         }
     }
 
-    private boolean isBinaryRequest(HttpServletRequest req){
+    private boolean isBinaryRequest(RequestWrapper req){
         String accept = req.getHeader("Accept");
         if(accept != null && accept.contains("application/octet-stream")) {
             return true;
