@@ -68,9 +68,9 @@ public class LoggingFilter extends OncePerRequestFilter {
             // 파일 요청일경우, response wrapper skip
             if(binaryRequest){
                 res = new ResponseWrapper(response);
-                filterChain.doFilter(req, response);
-            }else{
                 filterChain.doFilter(req, res);
+            }else{
+                filterChain.doFilter(req, response);
             }
 
         }catch(Exception e){
