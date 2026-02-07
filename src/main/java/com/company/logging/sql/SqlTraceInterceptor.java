@@ -16,6 +16,10 @@ import org.apache.ibatis.session.RowBounds;
 
 import java.util.List;
 
+/**
+ * MyBatis 실행을 가로채어 SQL 실행 정보를 수집하는 인터셉터입니다.
+ * Executor의 update 및 query 메서드를 가로챕니다.
+ */
 @Intercepts({
         @Signature(
                 type = Executor.class,
@@ -64,6 +68,9 @@ public class SqlTraceInterceptor implements Interceptor {
 
     }
 
+    /**
+     * SQL 파라미터를 문자열로 추출합니다.
+     */
     private String extractSqlParam(MappedStatement ms, Object param) {
         if(param == null) return null;
 
@@ -103,6 +110,9 @@ public class SqlTraceInterceptor implements Interceptor {
         return sb.toString();
     }
 
+    /**
+     * 값을 로그에 적합한 문자열 형식으로 변환합니다.
+     */
     private String formatValue(Object value) {
         if(value == null) return "null";
 

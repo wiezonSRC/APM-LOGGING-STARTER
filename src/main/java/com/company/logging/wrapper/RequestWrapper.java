@@ -11,12 +11,17 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 
+/**
+ * HttpServletRequest를 래핑하여 요청 본문(Body)을 여러 번 읽을 수 있도록 하는 클래스입니다.
+ * 기본 서블릿 스트림은 한 번 읽으면 소모되므로, 로깅을 위해 본문을 캐싱해둡니다.
+ */
 public class RequestWrapper extends HttpServletRequestWrapper {
 
     private final byte[] cachedBody;
 
     public RequestWrapper(HttpServletRequest request) throws IOException {
         super(request);
+        // 요청 본문을 바이트 배열로 읽어 캐싱합니다.
         cachedBody = request.getInputStream().readAllBytes();
     }
 

@@ -12,9 +12,13 @@ import java.io.PrintWriter;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
+/**
+ * HttpServletResponse를 래핑하여 응답 본문을 캡처(Capture)할 수 있도록 하는 클래스입니다.
+ * 클라이언트로 전송되는 데이터를 가로채어 로깅에 사용하기 위해 메모리에 복사해둡니다.
+ */
 public class ResponseWrapper extends HttpServletResponseWrapper {
 
-    private static final int MAX_CAPTURE_SIZE = 1024 * 1024; // 1MB
+    private static final int MAX_CAPTURE_SIZE = 1024 * 1024; // 1MB 제한
     private final ByteArrayOutputStream capture = new ByteArrayOutputStream();
     private ServletOutputStream outputStream;
     private PrintWriter writer;
@@ -38,6 +42,7 @@ public class ResponseWrapper extends HttpServletResponseWrapper {
                 @Override
                 public void write(int b) throws IOException{
                     original.write(b);
+                    // 캡처 용량 제한을 넘지 않는 선에서 데이터 복사
                     if(capture.size() < MAX_CAPTURE_SIZE){
                         capture.write(b);
                     }
@@ -114,14 +119,14 @@ public class ResponseWrapper extends HttpServletResponseWrapper {
     }
 
     /**
-     * response body raw bytes
+     * 캡처된 응답 본문의 원시 바이트를 반환합니다.
      */
     public byte[] getBody() {
         return capture.toByteArray();
     }
 
     /**
-     * response body as string
+     * 캡처된 응답 본문을 UTF-8 문자열로 반환합니다.
      */
     public String getBodyAsString() {
         return capture.toString(StandardCharsets.UTF_8);

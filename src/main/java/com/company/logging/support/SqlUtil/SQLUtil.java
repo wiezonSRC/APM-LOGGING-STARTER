@@ -9,8 +9,19 @@ import org.apache.ibatis.session.Configuration;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * MyBatis의 MappedStatement와 파라미터를 기반으로 완성된 SQL을 생성하는 유틸리티 클래스입니다.
+ * '?' 플레이스홀더를 실제 값으로 치환하여 실행 가능한 SQL 형태를 만듭니다.
+ */
 public class SQLUtil {
 
+    /**
+     * 바인딩된 SQL과 파라미터를 사용하여 완성된 SQL 문자열을 생성합니다.
+     *
+     * @param ms MappedStatement
+     * @param param 파라미터 객체
+     * @return 파라미터가 치환된 SQL 문자열
+     */
     public static String buildSql(MappedStatement ms, Object param){
         BoundSql boundSql = ms.getBoundSql(param);
         String sql = boundSql.getSql();
@@ -23,6 +34,10 @@ public class SQLUtil {
         return replacePlaceholders(sql, mappings, boundSql, ms.getConfiguration(), param);
     }
 
+    /**
+     * SQL 문자열 내의 '?'를 순차적으로 파라미터 값으로 치환합니다.
+     * 문자열 리터럴이나 주석 내의 '?'는 무시합니다.
+     */
     private static String replacePlaceholders(String sql, List<ParameterMapping> mappings, BoundSql boundSql, Configuration configuration, Object param) {
         StringBuilder sb = new StringBuilder();
         SqlContext ctx = SqlContext.NORMAL;
@@ -32,6 +47,7 @@ public class SQLUtil {
         for(int i = 0; i < sql.length(); i++){
             char c = sql.charAt(i);
 
+            // SQL 파싱 컨텍스트 상태 관리 (따옴표, 주석 등)
             if(ctx==SqlContext.NORMAL){
                 if(c == '\'') ctx = SqlContext.SINGLE_QUOTE;
                 else if(c == '-' && i+1 <sql.length() && sql.charAt(i+1) == '-') ctx = SqlContext.LINE_COMMENT;
@@ -45,6 +61,7 @@ public class SQLUtil {
             }
 
 
+            // '?' 치환 로직
             if(c == '?' && ctx == SqlContext.NORMAL && paramIdx < mappings.size()){
                 ParameterMapping pm = mappings.get(paramIdx++);
                 Object value = resolveValue(pm, boundSql, metaObject);
@@ -57,6 +74,9 @@ public class SQLUtil {
         return sb.toString();
     }
 
+    /**
+     * 파라미터 매핑 정보를 통해 실제 값을 추출합니다.
+     */
     private static Object resolveValue(ParameterMapping pm, BoundSql boundSql, MetaObject metaObject) {
         String prop = pm.getProperty();
 
@@ -71,6 +91,9 @@ public class SQLUtil {
         return null;
     }
 
+    /**
+     * 값을 SQL 리터럴 형식으로 변환합니다. (예: 문자열은 따옴표로 감쌈)
+     */
     private static String formatValue(Object value) {
         if(value == null) return "NULL";
 
