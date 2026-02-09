@@ -99,45 +99,8 @@ public class LoggingFilter extends OncePerRequestFilter {
 
             long elapsed = System.currentTimeMillis() - start;
 
-            if(res != null && !isBinaryResponse(res)){
-                // 일반적인 텍스트/JSON 응답에 대한 로깅
-                logProd(req, res, elapsed, exception);
-
-                if(TraceContextHolder.isTrace()){
-                    logTrace(req, res, elapsed, exception);
-                }
-                if(TraceContextHolder.isDebug()){
-                    logDebug(req, res, elapsed, exception);
-                }
-
-
-                // 슬로우 쿼리(Slow SQL) 로깅
-                SqlTraceContext ctx = SqlTraceContextHolder.get();
-                if (ctx != null && ctx.getTotalElapsed() > queryTotalMs) {
-
-                    ctx.getTraces().stream()
-                            .filter(t -> t.getElapsed() > queryMs)
-                            .forEach(t ->
-                                    logger.warn("[SLOW_SQL] ({}) sqlId={} elapsed={}ms sqlParam=\"{}\" query=\"{}\"",
-                                            MDC.get("traceId"),
-                                            t.getSqlId(),
-                                            t.getElapsed(),
-                                            t.getSqlParam(),
-                                            prettySqlLog(t.getSql()))
-                            );
-                }
-
-
-            }else{
-                // 바이너리 응답이거나 래퍼가 사용되지 않은 경우의 기본 로깅
-                logger.info("[API_PROD] ({}) uri={} method={} status={} elapsed={}ms",
-                        MDC.get("traceId"),
-                        request.getRequestURI(),
-                        request.getMethod(),
-                        response.getStatus(),
-                        elapsed
-                );
-            }
+            // 통합 로깅 호출 (PROD < DEBUG < TRACE 계층형)
+            logUnified(req, res, elapsed, exception, binaryRequest);
 
             // 컨텍스트 정리
             SqlTraceContextHolder.clear();
@@ -147,10 +110,71 @@ public class LoggingFilter extends OncePerRequestFilter {
     }
 
     /**
+     * 통합 로깅: 계층별로 정보의 상세도를 조절하여 중복 없이 출력합니다.
+     */
+    private void logUnified(RequestWrapper req, ResponseWrapper res, long elapsed, Exception ex, boolean isBinaryRequest) {
+        String traceId = MDC.get("traceId");
+        TraceLevel level = TraceContextHolder.isTrace() ? TraceLevel.TRACE : (TraceContextHolder.isDebug() ? TraceLevel.DEBUG : TraceLevel.PROD);
+        boolean isError = (ex != null || (res != null && hasErrorCode(res)));
+
+        long totalSqlElapsed = SqlTraceContextHolder.totalElapsed();
+        int totalSlowLimit = properties.getSlow().getQuery().getTotalMs();
+        int slowQueryLimit = properties.getSlow().getQuery().getMs();
+
+        // 1. [API 요약] (PROD 이상 항상 출력) - IFID 필수 포함
+        logger.info("[API_PROD] trace_id={} interface_id={} uri={} method={} status={} elapsed={}ms sql_count={} sql_elapsed={}ms",
+                traceId,
+                req.getHeader("IFID"),
+                req.getRequestURI(),
+                req.getMethod(),
+                res != null ? res.getStatus() : "-",
+                elapsed,
+                SqlTraceContextHolder.get().count(),
+                SqlTraceContextHolder.get().getTotalElapsed()
+        );
+
+        // 2. [BODY] (PROD 이상 항상 출력 - 텍스트인 경우만)
+        if (!isBinaryRequest) {
+            logger.info("[REQ_BODY] trace_id={} request_param={} request_body={}", traceId, req.getParameterMap(), req.getBody());
+            if (res != null && !isBinaryResponse(res) && isTextContent(res.getContentType())) {
+                logger.info("[RES_BODY] trace_id={} response_body={}", traceId, res.getBodyAsString());
+            }
+        }
+
+        // [api 전체 쿼리 응답] 슬로우 쿼리
+        if(totalSqlElapsed >= totalSlowLimit){
+            logger.info("[SQL] (TOTAL_SLOW) trace_id={} interface_id={} total_sql_elapsed={}ms (limit={}ms)",
+                    traceId, req.getHeader("IFID"), totalSqlElapsed, totalSlowLimit);
+        }
+
+        // 3. [SQL] (레벨 및 슬로우 쿼리에 따른 상세도 조절)
+        for (SqlTrace sql : SqlTraceContextHolder.getAll()) {
+            boolean isSlow = sql.getElapsed() >= slowQueryLimit;
+            String formattedSql = prettySqlLog(sql.getSql());
+
+            if (isSlow) {
+                // 슬로우 쿼리는 레벨 불문 출력 (중복 방지)
+                logger.info("[SQL] (SLOW) trace_id={} sql_id={} elapsed={}ms query=\"{}\"",
+                        traceId, sql.getSqlId(), sql.getElapsed(), formattedSql);
+            } else if (level == TraceLevel.TRACE || isError) {
+                // TRACE 레벨이거나 에러 발생 시 전체 쿼리 출력
+                logger.info("[SQL] trace_id={} sql_id={} elapsed={}ms query=\"{}\"",
+                        traceId, sql.getSqlId(), sql.getElapsed(), formattedSql);
+            } else if (level == TraceLevel.DEBUG) {
+                // DEBUG 레벨일 때는 파라미터까지만 출력
+                logger.info("[SQL] trace_id={} sql_id={} elapsed={}ms param={}",
+                        traceId, sql.getSqlId(), sql.getElapsed(), sql.getSqlParam());
+            }
+        }
+
+        // 4. [EXCEPTION] 예외 발생 시 상세 스택트레이스 포함
+        if (ex != null) {
+            logger.info("[EXCEPTION] trace_id={} message={}", traceId, ex.getMessage(), ex);
+        }
+    }
+
+    /**
      * 요청이 바이너리 데이터(예: 파일 업로드)인지 확인합니다.
-     *
-     * @param req 래핑된 요청 객체
-     * @return 바이너리 요청이면 true
      */
     private boolean isBinaryRequest(RequestWrapper req){
         String accept = req.getHeader("Accept");
@@ -163,7 +187,6 @@ public class LoggingFilter extends OncePerRequestFilter {
             return true;
         }
 
-        // 다운로드 API가 GET이고 body가 없으며 Range 헤더가 있을 가능성 체크
         String range = req.getHeader("Range");
         return range != null;
     }
@@ -186,212 +209,26 @@ public class LoggingFilter extends OncePerRequestFilter {
 
     /**
      * Content-Type이 텍스트(주로 JSON)인지 확인합니다.
-     *
-     * @param contentType Content-Type 문자열
-     * @return 텍스트/JSON 계열이면 true
      */
     private boolean isTextContent(String contentType){
         return contentType != null && (
-                    contentType.startsWith("application/json")
-                    || contentType.contains("+json")
-                );
-    }
-
-    /**
-     * TRACE 레벨 로깅: 요청/응답의 헤더, 바디, 파라미터 및 실행된 SQL 전체를 상세하게 남깁니다.
-     */
-    private void logTrace(RequestWrapper req, ResponseWrapper res, long elapsed, Exception exception) {
-
-        String reqContentType = req.getContentType();
-        String resContentType = res.getContentType();
-
-        boolean isTextRequest = isTextContent(reqContentType);
-        boolean isTextResponse = isTextContent(resContentType);
-
-
-        logger.info("[API_TRACE] ({}) uri={} method={} params=\"{}\" elapsed={}ms",
-                MDC.get("traceId"),
-                req.getRequestURI(),
-                req.getMethod(),
-                req.getParameterMap(),
-                elapsed,
-                exception
+                contentType.startsWith("application/json")
+                        || contentType.contains("+json")
         );
-
-        if (isTextRequest) {
-            logger.info("[API_TRACE] [REQUEST] ({}) [IFID] {} [REQ_PARAM] param=\"{}\" [REQ_BODY] body=\"{}\"",
-                    MDC.get("traceId"),
-                    req.getHeader("IFID"),
-                    req.getParameterMap(),
-                    req.getBody());
-        }
-
-
-        // SQL TRACE
-        for (SqlTrace sql : SqlTraceContextHolder.getAll()) {
-            if (sql.getSql() != null) {
-                logger.info("[API_TRACE] [SQL] ({}) sqlId={} elapsed={}ms query=\"{}\"",
-                        MDC.get("traceId"),
-                        sql.getSqlId(),
-                        sql.getElapsed(),
-                        prettySqlLog(sql.getSql()));
-            }
-        }
-
-
-        if (isTextResponse) {
-            logger.info("[API_TRACE] [RESPONSE] ({}) body=\"{}\"",
-                    MDC.get("traceId"),
-                    res.getBodyAsString());
-        }
     }
 
     /**
-     * 에러 발생 시 또는 에러 응답 감지 시 상세 로그를 남깁니다.
-     */
-    private void logError(RequestWrapper req, ResponseWrapper res, long elapsed, Exception exception) {
-
-        String reqContentType = req.getContentType();
-        String resContentType = res.getContentType();
-
-        boolean isTextRequest = isTextContent(reqContentType);
-        boolean isTextResponse = isTextContent(resContentType);
-
-
-        logger.error("[ERROR] ({}) uri={} method={} params=\"{}\" elapsed={}ms",
-                MDC.get("traceId"),
-                req.getRequestURI(),
-                req.getMethod(),
-                req.getParameterMap(),
-                elapsed,
-                exception
-        );
-
-        if (isTextRequest) {
-            logger.error("[ERROR] [REQUEST] ({}) [IFID] {} [REQ_PARAM] param=\"{}\" [REQ_BODY] body=\"{}\"",
-                    MDC.get("traceId"),
-                    req.getHeader("IFID"),
-                    req.getParameterMap(),
-                    req.getBody());
-        }
-
-
-        // SQL TRACE
-        for (SqlTrace sql : SqlTraceContextHolder.getAll()) {
-            if (sql.getSql() != null) {
-                logger.error("[ERROR] [SQL] ({}) sqlId={} elapsed={}ms query=\"{}\"",
-                        MDC.get("traceId"),
-                        sql.getSqlId(),
-                        sql.getElapsed(),
-                        prettySqlLog(sql.getSql()));
-            }
-        }
-
-
-        if (isTextResponse) {
-            logger.error("[ERROR] [RESPONSE] ({}) response=\"{}\"",
-                    MDC.get("traceId"),
-                    res.getBodyAsString());
-        }
-    }
-
-    /**
-     * SQL 로그를 보기 좋게 포맷팅합니다 (불필요한 공백 제거).
+     * SQL 로그를 보기 좋게 포맷팅합니다.
+     * Alloy 수집을 위해 한 줄로 유지하되, DBeaver 복사 시 깨지지 않도록 주석을 제거합니다.
      */
     private String prettySqlLog(String sql) {
+        if (sql == null) return "";
         // 1. Line Comment (--) 제거
         sql = sql.replaceAll("--.*", "");
-
         // 2. 여러 줄 주석 (/* */) 제거
-        sql = sql.replaceAll("/\\*.*\\*/", "");
-
+        sql = sql.replaceAll("/\\*.*?\\*/", "");
         // 3. 불필요한 공백/개행 정리 (하나의 공백으로)
-         sql = sql.replaceAll("\\s+", " ").trim();
-
-        return sql;
-    }
-
-    /**
-     * DEBUG 레벨 로깅: TRACE보다는 가볍지만 SQL 실행 내역 등을 포함합니다.
-     */
-    private void logDebug(RequestWrapper req, ResponseWrapper res, long elapsed, Exception exception) {
-
-        String reqContentType = req.getContentType();
-        String resContentType = res.getContentType();
-
-        boolean isTextRequest = isTextContent(reqContentType);
-        boolean isTextResponse = isTextContent(resContentType);
-
-        logger.info("[API_DEBUG] ({}) uri={} method={} elapsed={}ms sqlCount={} sqlElapsed={}ms",
-                MDC.get("traceId"),
-                req.getRequestURI(),
-                req.getMethod(),
-                elapsed,
-                SqlTraceContextHolder.get().count(),
-                SqlTraceContextHolder.get().getTotalElapsed(),
-                exception
-        );
-
-        if (isTextRequest) {
-            logger.info("[API_DEBUG] [REQUEST] ({}) IFID {} [REQ_PARAM] \"{}\" [REQ_BODY] \"{}\"",
-                    MDC.get("traceId"),
-                    req.getHeader("IFID"),
-                    req.getParameterMap(),
-                    req.getBody()
-            );
-        }
-
-        for (SqlTrace sql : SqlTraceContextHolder.getAll()) {
-            if (sql.getSql() != null) {
-                logger.info("[API_DEBUG] [SQL] ({}) sqlId={} elapsed={}ms sqlParam=\"{}\"",
-                        MDC.get("traceId"),
-                        sql.getSqlId(),
-                        sql.getElapsed(),
-                        sql.getSqlParam()
-                );
-            }
-        }
-
-        if (isTextResponse) {
-            logger.info("[API_DEBUG] [RESPONSE] ({}) [RES_BODY] \"{}\"",
-                    MDC.get("traceId"),
-                    res.getBodyAsString()
-            );
-        }
-
-    }
-
-    /**
-     * PROD 레벨 로깅: 가장 기본적인 요청 요약 정보만 남깁니다.
-     * 예외가 발생하거나 에러 코드가 감지되면 ERROR 로그를 추가로 남깁니다.
-     */
-    private void logProd(RequestWrapper req, ResponseWrapper res, long elapsed, Exception exception) {
-        logger.info("[API_PROD] ({}) IFID={} REQ_BODY={} uri={} method={} status={} elapsed={}ms sqlCount={} sqlElapsed={}ms",
-                MDC.get("traceId"),
-                req.getHeader("IFID"),
-                req.getBody(),
-                req.getRequestURI(),
-                req.getMethod(),
-                res.getStatus(),
-                elapsed,
-                SqlTraceContextHolder.get().count(),
-                SqlTraceContextHolder.get().getTotalElapsed()
-        );
-
-        for (SqlTrace sql : SqlTraceContextHolder.getAll()) {
-            if (sql != null) {
-                logger.info("[API_PROD] [SQL] ({}) sqlId={} elapsed={}ms sqlParam=\"{}\"",
-                        MDC.get("traceId"),
-                        sql.getSqlId(),
-                        sql.getElapsed(),
-                        sql.getSqlParam()
-                );
-            }
-        }
-
-        if(exception != null || hasErrorCode(res)){
-            logError(req, res, elapsed, exception);
-        }
+        return sql.replaceAll("\\s+", " ").trim();
     }
 
 
