@@ -307,7 +307,16 @@ public class LoggingFilter extends OncePerRequestFilter {
      * SQL 로그를 보기 좋게 포맷팅합니다 (불필요한 공백 제거).
      */
     private String prettySqlLog(String sql) {
-        return sql.replaceAll("\\s+", " ").trim();
+        // 1. Line Comment (--) 제거
+        sql = sql.replaceAll("--.*", "");
+
+        // 2. 여러 줄 주석 (/* */) 제거
+        sql = sql.replaceAll("/\\*.*\\*/", "");
+
+        // 3. 불필요한 공백/개행 정리 (하나의 공백으로)
+         sql = sql.replaceAll("\\s+", " ").trim();
+
+        return sql;
     }
 
     /**
