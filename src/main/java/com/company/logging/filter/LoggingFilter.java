@@ -118,7 +118,7 @@ public class LoggingFilter extends OncePerRequestFilter {
                     ctx.getTraces().stream()
                             .filter(t -> t.getElapsed() > queryMs)
                             .forEach(t ->
-                                    logger.warn("[SLOW_SQL] ({}) sqlId={} elapsed={}ms sqlParam={} sql={}",
+                                    logger.warn("[SLOW_SQL] ({}) sqlId={} elapsed={}ms sqlParam=\"{}\" query=\"{}\"",
                                             MDC.get("traceId"),
                                             t.getSqlId(),
                                             t.getElapsed(),
@@ -209,7 +209,7 @@ public class LoggingFilter extends OncePerRequestFilter {
         boolean isTextResponse = isTextContent(resContentType);
 
 
-        logger.info("[API_TRACE] ({}) uri={} method={} params={} elapsed={}ms",
+        logger.info("[API_TRACE] ({}) uri={} method={} params=\"{}\" elapsed={}ms",
                 MDC.get("traceId"),
                 req.getRequestURI(),
                 req.getMethod(),
@@ -219,7 +219,7 @@ public class LoggingFilter extends OncePerRequestFilter {
         );
 
         if (isTextRequest) {
-            logger.info("[API_TRACE] [REQUEST] ({}) [IFID] {} [REQ_PARAM] {} [REQ_BODY] body={}",
+            logger.info("[API_TRACE] [REQUEST] ({}) [IFID] {} [REQ_PARAM] param=\"{}\" [REQ_BODY] body=\"{}\"",
                     MDC.get("traceId"),
                     req.getHeader("IFID"),
                     req.getParameterMap(),
@@ -230,7 +230,7 @@ public class LoggingFilter extends OncePerRequestFilter {
         // SQL TRACE
         for (SqlTrace sql : SqlTraceContextHolder.getAll()) {
             if (sql.getSql() != null) {
-                logger.info("[API_TRACE] [SQL] ({}) sqlId={} elapsed={}ms sql={}",
+                logger.info("[API_TRACE] [SQL] ({}) sqlId={} elapsed={}ms query=\"{}\"",
                         MDC.get("traceId"),
                         sql.getSqlId(),
                         sql.getElapsed(),
@@ -240,7 +240,7 @@ public class LoggingFilter extends OncePerRequestFilter {
 
 
         if (isTextResponse) {
-            logger.info("[API_TRACE] [RESPONSE] ({}) body={}",
+            logger.info("[API_TRACE] [RESPONSE] ({}) body=\"{}\"",
                     MDC.get("traceId"),
                     res.getBodyAsString());
         }
@@ -258,7 +258,7 @@ public class LoggingFilter extends OncePerRequestFilter {
         boolean isTextResponse = isTextContent(resContentType);
 
 
-        logger.error("[ERROR] ({}) uri={} method={} params={} elapsed={}ms",
+        logger.error("[ERROR] ({}) uri={} method={} params=\"{}\" elapsed={}ms",
                 MDC.get("traceId"),
                 req.getRequestURI(),
                 req.getMethod(),
@@ -268,7 +268,7 @@ public class LoggingFilter extends OncePerRequestFilter {
         );
 
         if (isTextRequest) {
-            logger.error("[ERROR] [REQUEST] ({}) [IFID] {} [REQ_PARAM] {} [REQ_BODY] body={}",
+            logger.error("[ERROR] [REQUEST] ({}) [IFID] {} [REQ_PARAM] param=\"{}\" [REQ_BODY] body=\"{}\"",
                     MDC.get("traceId"),
                     req.getHeader("IFID"),
                     req.getParameterMap(),
@@ -279,7 +279,7 @@ public class LoggingFilter extends OncePerRequestFilter {
         // SQL TRACE
         for (SqlTrace sql : SqlTraceContextHolder.getAll()) {
             if (sql.getSql() != null) {
-                logger.error("[ERROR] [SQL] ({}) sqlId={} elapsed={}ms sql={}",
+                logger.error("[ERROR] [SQL] ({}) sqlId={} elapsed={}ms query=\"{}\"",
                         MDC.get("traceId"),
                         sql.getSqlId(),
                         sql.getElapsed(),
@@ -289,7 +289,7 @@ public class LoggingFilter extends OncePerRequestFilter {
 
 
         if (isTextResponse) {
-            logger.error("[ERROR] [RESPONSE] ({}) body={}",
+            logger.error("[ERROR] [RESPONSE] ({}) response=\"{}\"",
                     MDC.get("traceId"),
                     res.getBodyAsString());
         }
@@ -333,7 +333,7 @@ public class LoggingFilter extends OncePerRequestFilter {
         );
 
         if (isTextRequest) {
-            logger.info("[API_DEBUG] [REQUEST] ({}) IFID {} [REQ_PARAM] {} [REQ_BODY] {}",
+            logger.info("[API_DEBUG] [REQUEST] ({}) IFID {} [REQ_PARAM] \"{}\" [REQ_BODY] \"{}\"",
                     MDC.get("traceId"),
                     req.getHeader("IFID"),
                     req.getParameterMap(),
@@ -343,7 +343,7 @@ public class LoggingFilter extends OncePerRequestFilter {
 
         for (SqlTrace sql : SqlTraceContextHolder.getAll()) {
             if (sql.getSql() != null) {
-                logger.info("[API_DEBUG] [SQL] ({}) sqlId={} elapsed={}ms sqlParam={}",
+                logger.info("[API_DEBUG] [SQL] ({}) sqlId={} elapsed={}ms sqlParam=\"{}\"",
                         MDC.get("traceId"),
                         sql.getSqlId(),
                         sql.getElapsed(),
@@ -353,7 +353,7 @@ public class LoggingFilter extends OncePerRequestFilter {
         }
 
         if (isTextResponse) {
-            logger.info("[API_DEBUG] [RESPONSE] ({}) [RES_BODY] {}",
+            logger.info("[API_DEBUG] [RESPONSE] ({}) [RES_BODY] \"{}\"",
                     MDC.get("traceId"),
                     res.getBodyAsString()
             );
@@ -380,7 +380,7 @@ public class LoggingFilter extends OncePerRequestFilter {
 
         for (SqlTrace sql : SqlTraceContextHolder.getAll()) {
             if (sql != null) {
-                logger.info("[API_PROD] [SQL] ({}) sqlId={} elapsed={}ms sqlParam={}",
+                logger.info("[API_PROD] [SQL] ({}) sqlId={} elapsed={}ms sqlParam=\"{}\"",
                         MDC.get("traceId"),
                         sql.getSqlId(),
                         sql.getElapsed(),
