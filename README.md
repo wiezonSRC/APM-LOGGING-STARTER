@@ -1,164 +1,122 @@
-# logging-starter Logback 설정 가이드
+# 🚀 Logging Starter
 
-본 문서는 `logging-starter` 라이브러리를 사용하는 **소비 프로젝트에서 반드시 설정해야 하는 Logback 구성**을 설명한다.  
-Starter는 로그를 **생성**만 하며, 로그의 **출력 정책(레벨/파일/경로)** 은 소비 프로젝트에서 관리한다.
+솔루션 구축 및 운영 환경에서 **추적성(Traceability)**과 **생산성**을 극대화하기 위한 Spring Boot Auto Configuration 라이브러리입니다.
+
+## 🌟 주요 특징
+
+### 1. 계층형 로깅 구조 (Hierarchical Logging)
+설정된 레벨에 따라 정보의 상세도를 지능적으로 조절하며 로그 중복을 방지합니다.
+- **PROD**: `IFID`, API 요약, 요청/응답 본문(JSON) 출력.
+- **DEBUG**: PROD 정보 + SQL ID, 파라미터, 개별 쿼리 수행 시간.
+- **TRACE**: DEBUG 정보 + **실제 값이 바인딩된 완성형 SQL문**.
+- **ERROR**: 레벨에 상관없이 에러 발생 시 해당 요청의 상세 정보(Body, SQL)를 자동으로 노출.
+
+### 2. 스마트 SQL 트레이싱
+- **완성형 SQL**: `?` 대신 실제 파라미터가 채워진 쿼리를 로그에 출력합니다.
+- **SQL 가공**: 로그 복사 시 쿼리가 깨지는 것을 방지하기 위해 `--` 주석을 자동으로 제거하고 한 줄로 최적화합니다. (DBeaver 복사-붙여넣기 최적화)
+- **슬로우 쿼리 감지**: 설정된 시간(`ms`)을 초과하는 쿼리는 `[SLOW_SQL]` WARN 로그로 자동 기록됩니다.
+
+### 3. Grafana / Alloy 최적화
+- 모든 로그는 `key="value"` 포맷의 한 줄 로깅을 지향하여 Grafana UI에서 필드 추출 및 복사가 용이합니다.
+- `traceId`를 통해 단일 요청의 전체 Lifecycle을 한눈에 추적할 수 있습니다.
 
 ---
 
-## 1. 개요
+## ⚙️ 설정 방법
 
-`logging-starter`는 다음과 같은 로그 레벨 구조를 전제로 동작한다.
+### 1. application.properties 설정
+```properties
+# 로그 추적 활성화 (기본값: true)
+log.trace.enabled=true
 
-| 구분 | 설명 |
-|---|---|
-| API_PROD | 운영 기본 로그 (항상 출력) |
-| API_DEBUG | 디버그용 로그 |
-| API_TRACE | 요청/응답/SQL 전체 추적 |
-| SQL_TRACE | SQL 실행 정보 (INFO 이상) |
-| SQL_DEBUG | SQL 상세 디버그 (선택적) |
+# 로그 레벨 설정 (PROD, DEBUG, TRACE | 기본값: PROD)
+log.trace.level=PROD
 
----
+# 슬로우 쿼리 임계치 설정
+# 개별 쿼리 기준 (ms)
+log.slow.query.ms=300
+# 한 API 내 전체 SQL 합계 기준 (ms)
+log.slow.query.total-ms=1000
 
-## 2. 필수 Logback 설정 (`logback-spring.xml`)
+# 로그 파일 경로
+logging.file.path=/var/log/app
+```
+
+### 2. 필수 Logback 설정 (`logback-spring.xml`)
+Starter에서 생성하는 로그를 올바르게 출력하기 위해 소비 프로젝트의 `src/main/resources/logback-spring.xml`에 아래 설정을 반드시 추가해야 합니다. (특히 **`[%X{traceId}]`** 패턴 누락 주의)
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <property name="LOG_TEMP" value="Log/" />
-
     <!-- Property 정의 -->
-    <springProperty name="LOG_PATH" scope="context" source="logging.file.path" defaultValue="/"/>
-    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss:SSS} [%thread] %-5level [%X{traceId}] %logger{36} [%M] - [IMS] %msg%n" />
+    <springProperty name="LOG_PATH" scope="context" source="logging.file.path" defaultValue="Log/"/>
+    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss:SSS} [%thread] %-5level [%X{traceId}] %logger{36} [%M] - %msg%n" />
 
-    <!-- [Conslot] -->
+    <!-- Console Appender -->
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>${LOG_PATTERN}</pattern>
         </encoder>
     </appender>
 
-    <!-- [MAIN FILE] -->
+    <!-- File Appender -->
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_PATH}/IMS.log</file>
-        <prudent>false</prudent>
-
-        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
-            <pattern>${LOG_PATTERN}</pattern>
-            <charset>UTF-8</charset>
-            <immediateFlush>true</immediateFlush>
-        </encoder>
-
-
+        <file>${LOG_PATH}/app.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_PATH}/IMS-%d{yyyy-MM-dd}_%i.log</fileNamePattern>
+            <fileNamePattern>${LOG_PATH}/app-%d{yyyy-MM-dd}_%i.log</fileNamePattern>
             <maxHistory>30</maxHistory>
             <maxFileSize>10MB</maxFileSize>
         </rollingPolicy>
-    </appender>
-
-    <appender name="SQL_DEBUG_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_PATH}/SQL_DEBUG.log</file>
-        <prudent>false</prudent>
         <encoder>
             <pattern>${LOG_PATTERN}</pattern>
             <charset>UTF-8</charset>
-            <immediateFlush>true</immediateFlush>
         </encoder>
-
-        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_PATH}/SQL_DEBUG-%d{yyyy-MM-dd}_%i.log</fileNamePattern>
-            <maxFileSize>10MB</maxFileSize>
-            <maxHistory>14</maxHistory>
-        </rollingPolicy>
     </appender>
 
-
-    <!-- === [ROOT LOGGER] === -->
-    <root level="INFO" >
+    <!-- Root Logger -->
+    <root level="INFO">
         <appender-ref ref="STDOUT" />
         <appender-ref ref="FILE" />
     </root>
 
-    <!-- === [SQL_TRACE (INFO, WARN, ERROR) ] === -->
-    <logger name="SQL_TRACE" level="INFO" additivity="false">
+    <!-- "Log" 이름의 로거 설정을 통해 Starter 로그 제어 -->
+    <logger name="Log" level="INFO" additivity="false">
         <appender-ref ref="STDOUT" />
-        <appender-ref ref="FILE"/>
+        <appender-ref ref="FILE" />
     </logger>
-
-    <!-- === [SQL DEBUG] === -->
-    <logger name="SQL_DEBUG" level="OFF" additivity="false">
-        <appender-ref ref="SQL_DEBUG_FILE"/>
-    </logger>
-
-    <!--  =================================
-                    log4jdbc OFF
-          ================================= -->
-
-    <logger name="jdbc" level="OFF" />
-    <logger name="jdbc.sqlonly" level="OFF" />
-    <logger name="jdbc.sqltiming" level="OFF" />
-    <logger name="jdbc.audit" level="OFF" />
-    <logger name="jdbc.resultset" level="OFF" />
-    <logger name="jdbc.resultsettable" level="OFF" />
-    <logger name="jdbc.connection" level="OFF" />
 
 </configuration>
 ```
 
 ---
 
-## 3. application.properties 예시
+## 📦 JitPack 배포 및 사용 방법
 
-```properties
-#default (true)
-log.trace.enabled=true
-# PROD<DEBUG<TRACE | default (prod) 
-log.trace.level=PROD
-# 쿼리 하나당 걸린 시간 | default(300)
-log.slow.query.ms=300
-# 하나의 flow의 총 걸린 sql 시간 | default(1000)
-log.slow.query.total-ms=1000
+### 1. 배포 방법
+본 라이브러리는 Git Tag를 기반으로 JitPack을 통해 배포됩니다.
+1. 소스 코드를 Push합니다.
+2. 새로운 태그를 생성합니다: `git tag v1.0.0`
+3. 태그를 Push합니다: `git push origin v1.0.0`
+4. [JitPack.io](https://jitpack.io)에서 배포 상태를 확인합니다.
 
-logging.file.path=/var/log/ims
-```
+### 2. 소비 프로젝트 설정 (build.gradle)
+```gradle
+repositories {
+    maven { url 'https://jitpack.io' }
+}
 
-
----
-## ⚠️ SqlSessionFactoryBean 수동 등록 시 필수 설정 안내
-
-본 프로젝트는 SQL Trace 로그 수집을 위해 MyBatis Interceptor(`SqlTraceInterceptor`)를 사용합니다.
-
-Spring Boot 자동 설정을 사용하지 않고,  
-`SqlSessionFactoryBean`을 **수동으로 생성하여 등록하는 경우**  
-MyBatis Interceptor는 자동으로 적용되지 않습니다.
-
-따라서 아래와 같이 `SqlTraceInterceptor`를 **반드시 직접 설정해야 합니다**.
-
-```java
-SqlSessionFactoryBean sqlSessionFactoryBean = new SqlSessionFactoryBean();
-Interceptor[] sqlInterceptor = { new SqlTraceInterceptor() };
-sqlSessionFactoryBean.setPlugins(sqlInterceptor);
+dependencies {
+    implementation 'com.github.YOUR_GITHUB_ID:logging-starter:v1.0.0'
+}
 ```
 
 ---
-## 4. 주의 사항
 
-- 반드시 `logback.xml` 사용
-- Mybatis 수동설정시, setPlugin으로 interceptor 추가 필요 (SqlTraceInteceptor)
-- Logger 이름 변경 금지
-- `%X{traceId}` 제거 금지
+## ⚠️ 필수 주의 사항
 
-
----
-## 5. 배포 방법
-```
-1. 태그 생성
-
--> git tag v1.0.x
-
-2. 태그 push
-
--> git push origin v1.0.x 
-```
-
-
+1. **IFID 헤더**: 모든 요청은 헤더에 `IFID`를 포함해야 API 요약 로그에 정상적으로 기록됩니다.
+2. **Logback 설정**: `logback-spring.xml`에서 `MDC` 필드인 `%X{traceId}`를 로그 패턴에 반드시 포함해야 합니다.
+3. **MyBatis 수동 설정 시**: `SqlSessionFactoryBean`을 직접 Bean으로 등록하는 프로젝트는 반드시 `SqlTraceInterceptor`를 플러그인으로 추가해야 합니다.
+   ```java
+   sqlSessionFactoryBean.setPlugins(new SqlTraceInterceptor());
+   ```
