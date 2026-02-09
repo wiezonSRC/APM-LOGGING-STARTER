@@ -165,11 +165,7 @@ public class LoggingFilter extends OncePerRequestFilter {
 
         // 다운로드 API가 GET이고 body가 없으며 Range 헤더가 있을 가능성 체크
         String range = req.getHeader("Range");
-        if (range != null) {
-            return true;
-        }
-
-        return false;
+        return range != null;
     }
 
     /**
@@ -185,11 +181,7 @@ public class LoggingFilter extends OncePerRequestFilter {
         }
 
         String disposition = res.getHeader("Content-Disposition");
-        if(disposition != null){
-            return true;
-        }
-
-        return false;
+        return disposition != null;
     }
 
     /**
