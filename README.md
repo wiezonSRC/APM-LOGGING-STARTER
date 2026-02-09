@@ -147,3 +147,18 @@ sqlSessionFactoryBean.setPlugins(sqlInterceptor);
 - Mybatis 수동설정시, setPlugin으로 interceptor 추가 필요 (SqlTraceInteceptor)
 - Logger 이름 변경 금지
 - `%X{traceId}` 제거 금지
+
+
+---
+## 5. 배포 방법
+```
+1. 태그 생성
+
+-> git tag v1.0.x
+
+2. 태그 push
+
+-> git push origin v1.0.x 
+```
+
+
