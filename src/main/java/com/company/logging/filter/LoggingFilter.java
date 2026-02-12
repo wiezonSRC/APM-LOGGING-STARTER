@@ -1,6 +1,7 @@
 package com.company.logging.filter;
 
 import com.company.logging.config.LoggingProperties;
+import com.company.logging.trace.LogProcessor;
 import com.company.logging.sql.SqlTrace;
 import com.company.logging.sql.SqlTraceContext;
 import com.company.logging.sql.SqlTraceContextHolder;
@@ -35,6 +36,7 @@ import java.util.UUID;
 public class LoggingFilter extends OncePerRequestFilter {
 
     private final LoggingProperties properties;
+    private final LogProcessor logProcessor;
     private final Logger logger = LoggerFactory.getLogger("Log");
 
     // 에러 코드로 간주할 JSON 키 목록
@@ -46,6 +48,7 @@ public class LoggingFilter extends OncePerRequestFilter {
 
     public LoggingFilter(LoggingProperties properties){
         this.properties = properties;
+        this.logProcessor = new LogProcessor(properties);
     }
 
     /**
@@ -78,7 +81,7 @@ public class LoggingFilter extends OncePerRequestFilter {
         RequestWrapper req = new RequestWrapper(request);
         boolean binaryRequest = isBinaryRequest(req);
 
-        long start = System.currentTimeMillis();
+        long startNano = System.nanoTime();
         Exception exception = null;
         ResponseWrapper res = null;
 
@@ -97,10 +100,10 @@ public class LoggingFilter extends OncePerRequestFilter {
             throw e;
         }finally{
 
-            long elapsed = System.currentTimeMillis() - start;
+            double elapsedMs = (System.nanoTime() - startNano) / 1_000_000.0;
 
             // 통합 로깅 호출 (PROD < DEBUG < TRACE 계층형)
-            logUnified(req, res, elapsed, exception, binaryRequest);
+            logUnified(req, res, elapsedMs, exception, binaryRequest);
 
             // 컨텍스트 정리
             SqlTraceContextHolder.clear();
@@ -112,65 +115,24 @@ public class LoggingFilter extends OncePerRequestFilter {
     /**
      * 통합 로깅: 계층별로 정보의 상세도를 조절하여 중복 없이 출력합니다.
      */
-    private void logUnified(RequestWrapper req, ResponseWrapper res, long elapsed, Exception ex, boolean isBinaryRequest) {
-        String traceId = MDC.get("traceId");
-        TraceLevel level = TraceContextHolder.isTrace() ? TraceLevel.TRACE : (TraceContextHolder.isDebug() ? TraceLevel.DEBUG : TraceLevel.PROD);
-        boolean isError = (ex != null || (res != null && hasErrorCode(res)));
+    private void logUnified(RequestWrapper req, ResponseWrapper res, double elapsedMs, Exception ex, boolean isBinaryRequest) {
+        String responseBody = (res != null && !isBinaryResponse(res) && isTextContent(res.getContentType())) ? res.getBodyAsString() : null;
+        boolean isBinaryRes = (res != null && isBinaryResponse(res));
+        String status = (res != null) ? String.valueOf(res.getStatus()) : "-";
 
-        long totalSqlElapsed = SqlTraceContextHolder.totalElapsed();
-        int totalSlowLimit = properties.getSlow().getQuery().getTotalMs();
-        int slowQueryLimit = properties.getSlow().getQuery().getMs();
-
-        // 1. [API 요약] (PROD 이상 항상 출력) - IFID 필수 포함
-        logger.info("[API_PROD] trace_id={} interface_id={} uri={} method={} status={} elapsed={}ms sql_count={} sql_elapsed={}ms",
-                traceId,
+        logProcessor.logApi(
                 req.getHeader("IFID"),
                 req.getRequestURI(),
                 req.getMethod(),
-                res != null ? res.getStatus() : "-",
-                elapsed,
-                SqlTraceContextHolder.get().count(),
-                SqlTraceContextHolder.get().getTotalElapsed()
+                status,
+                elapsedMs,
+                req.getParameterMap().toString(),
+                req.getBody(),
+                responseBody,
+                isBinaryRequest,
+                isBinaryRes,
+                ex
         );
-
-        // 2. [BODY] (PROD 이상 항상 출력 - 텍스트인 경우만)
-        if (!isBinaryRequest) {
-            logger.info("[REQ_BODY] trace_id={} request_param={} request_body={}", traceId, req.getParameterMap(), req.getBody());
-            if (res != null && !isBinaryResponse(res) && isTextContent(res.getContentType())) {
-                logger.info("[RES_BODY] trace_id={} response_body={}", traceId, res.getBodyAsString());
-            }
-        }
-
-        // [api 전체 쿼리 응답] 슬로우 쿼리
-        if(totalSqlElapsed >= totalSlowLimit){
-            logger.info("[SQL] (TOTAL_SLOW) trace_id={} interface_id={} total_sql_elapsed={}ms (limit={}ms)",
-                    traceId, req.getHeader("IFID"), totalSqlElapsed, totalSlowLimit);
-        }
-
-        // 3. [SQL] (레벨 및 슬로우 쿼리에 따른 상세도 조절)
-        for (SqlTrace sql : SqlTraceContextHolder.getAll()) {
-            boolean isSlow = sql.getElapsed() >= slowQueryLimit;
-            String formattedSql = prettySqlLog(sql.getSql());
-
-            if (isSlow) {
-                // 슬로우 쿼리는 레벨 불문 출력 (중복 방지)
-                logger.info("[SQL] (SLOW) trace_id={} sql_id={} elapsed={}ms query=\"{}\"",
-                        traceId, sql.getSqlId(), sql.getElapsed(), formattedSql);
-            } else if (level == TraceLevel.TRACE || isError) {
-                // TRACE 레벨이거나 에러 발생 시 전체 쿼리 출력
-                logger.info("[SQL] trace_id={} sql_id={} elapsed={}ms query=\"{}\"",
-                        traceId, sql.getSqlId(), sql.getElapsed(), formattedSql);
-            } else if (level == TraceLevel.DEBUG) {
-                // DEBUG 레벨일 때는 파라미터까지만 출력
-                logger.info("[SQL] trace_id={} sql_id={} elapsed={}ms param={}",
-                        traceId, sql.getSqlId(), sql.getElapsed(), sql.getSqlParam());
-            }
-        }
-
-        // 4. [EXCEPTION] 예외 발생 시 상세 스택트레이스 포함
-        if (ex != null) {
-            logger.info("[EXCEPTION] trace_id={} message={}", traceId, ex.getMessage(), ex);
-        }
     }
 
     /**
@@ -216,21 +178,6 @@ public class LoggingFilter extends OncePerRequestFilter {
                         || contentType.contains("+json")
         );
     }
-
-    /**
-     * SQL 로그를 보기 좋게 포맷팅합니다.
-     * Alloy 수집을 위해 한 줄로 유지하되, DBeaver 복사 시 깨지지 않도록 주석을 제거합니다.
-     */
-    private String prettySqlLog(String sql) {
-        if (sql == null) return "";
-        // 1. Line Comment (--) 제거
-        sql = sql.replaceAll("--.*", "");
-        // 2. 여러 줄 주석 (/* */) 제거
-        sql = sql.replaceAll("/\\*.*?\\*/", "");
-        // 3. 불필요한 공백/개행 정리 (하나의 공백으로)
-        return sql.replaceAll("\\s+", " ").trim();
-    }
-
 
     /**
      * 응답 본문에 특정 에러 코드가 포함되어 있는지 검사합니다.

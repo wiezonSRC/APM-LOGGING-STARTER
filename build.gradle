@@ -38,11 +38,12 @@ dependencies {
     /* ===== JSON ===== */
     api 'com.fasterxml.jackson.core:jackson-databind'
 
-    /* starter (logging-starter) */
+    /* ===== Optional / Provided by Consumer ===== */
+    compileOnly 'org.springframework.boot:spring-boot-starter-web'
+    compileOnly 'io.netty:netty-all:4.1.100.Final'
+    compileOnly 'org.springframework.batch:spring-batch-core'
     compileOnly 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.3'
 
-    /* ===== Optional ===== */
-    compileOnly 'org.springframework.boot:spring-boot-starter-web'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 
