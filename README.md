@@ -82,3 +82,25 @@ Starter 로그를 올바르게 출력하기 위해 소비 프로젝트의 패턴
 1. **IFID 헤더**: 모든 HTTP 요청은 헤더에 `IFID`를 포함해야 API 요약 로그에 정상적으로 기록됩니다.
 2. **JSON 에러 코드**: 응답 바디 내 `resCode`, `res_cd`, `code` 필드 값이 `9999`인 경우 자동으로 ERROR 수준의 상세 로그를 남깁니다.
 3. **MyBatis 수동 설정 시**: `SqlSessionFactoryBean`을 직접 등록하는 경우 반드시 `SqlTraceInterceptor` 플러그인을 추가해야 합니다.
+
+---
+
+
+## 배포방법
+
+**Git Push** 
+```
+git commit -m "Commit"
+git push
+``` 
+
+
+**태그 생성**
+```
+git tag v1.0.x
+```
+
+**jitpack 배포**
+```
+git push origin v1.0.x
+```
