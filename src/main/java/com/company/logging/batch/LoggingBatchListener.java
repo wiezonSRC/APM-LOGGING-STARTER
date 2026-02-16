@@ -39,7 +39,10 @@ public class LoggingBatchListener implements JobExecutionListener, StepExecution
         try {
             double elapsedMs = 0;
             if (jobExecution.getEndTime() != null && jobExecution.getStartTime() != null) {
-                elapsedMs = ChronoUnit.NANOS.between(jobExecution.getStartTime(), jobExecution.getEndTime()) / 1_000_000.0;
+                elapsedMs = ChronoUnit.MILLIS.between(
+                        jobExecution.getStartTime(),
+                        jobExecution.getEndTime()
+                );
             }
 
             Exception ex = null;
@@ -75,7 +78,10 @@ public class LoggingBatchListener implements JobExecutionListener, StepExecution
     public ExitStatus afterStep(StepExecution stepExecution) {
         double elapsedMs = 0;
         if (stepExecution.getEndTime() != null && stepExecution.getStartTime() != null) {
-            elapsedMs = ChronoUnit.NANOS.between(stepExecution.getStartTime(), stepExecution.getEndTime()) / 1_000_000.0;
+            elapsedMs = ChronoUnit.MILLIS.between(
+                    stepExecution.getStartTime(),
+                    stepExecution.getEndTime()
+            );
         }
 
         Exception ex = null;
@@ -95,7 +101,8 @@ public class LoggingBatchListener implements JobExecutionListener, StepExecution
 
         logProcessor.logBatch(batchContext);
         SqlTraceContextHolder.clear();
-        return null;
+
+        return stepExecution.getExitStatus();
     }
 
     private void initContext() {

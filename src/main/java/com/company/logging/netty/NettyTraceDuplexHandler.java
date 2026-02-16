@@ -2,6 +2,7 @@ package com.company.logging.netty;
 
 import com.company.logging.context.LogNettyContext;
 import com.company.logging.config.LoggingProperties;
+import com.company.logging.sql.SqlTraceContext;
 import com.company.logging.sql.SqlTraceContextHolder;
 import com.company.logging.trace.LogProcessor;
 import com.company.logging.trace.TraceContextHolder;
@@ -22,9 +23,11 @@ public class NettyTraceDuplexHandler extends ChannelDuplexHandler {
     private final LogProcessor logProcessor;
     private final LoggingProperties properties;
     private final AttributeKey<String> realIpKey;
-    
-    private long startNano;
-    private Object requestMsg;
+
+    private static final AttributeKey<Long> START_NANO_KEY = AttributeKey.valueOf("START_NANO");
+    private static final AttributeKey<String> TRACE_ID_KEY = AttributeKey.valueOf("TRACE_ID");
+    private static final AttributeKey<String> REQUEST_DATA_KEY = AttributeKey.valueOf("REQUEST_DATA");
+    private static final AttributeKey<SqlTraceContext> SQL_CONTEXT_KEY = AttributeKey.valueOf("SQL_CONTEXT");
 
     public NettyTraceDuplexHandler(LoggingProperties properties, AttributeKey<String> realIpKey) {
         this.properties = properties;
@@ -34,60 +37,107 @@ public class NettyTraceDuplexHandler extends ChannelDuplexHandler {
 
     @Override
     public void channelRead(@NonNull ChannelHandlerContext ctx,@NonNull Object msg) throws Exception {
-        this.startNano = System.nanoTime();
-        this.requestMsg = msg;
+        long startNano = System.nanoTime();
+        String traceId = UUID.randomUUID().toString();
 
         // 1. 컨텍스트 시작
-        String traceId = UUID.randomUUID().toString();
         MDC.put("traceId", traceId);
         TraceContextHolder.init(properties.getTrace().getLevel(), false);
         SqlTraceContextHolder.init();
+
+        // 2. 속성 저장 (동시성 안전을 위해 채널 속성 사용)
+        ctx.channel().attr(START_NANO_KEY).set(startNano);
+        ctx.channel().attr(TRACE_ID_KEY).set(traceId);
+        ctx.channel().attr(REQUEST_DATA_KEY).set(safeToString(msg));
+        ctx.channel().attr(SQL_CONTEXT_KEY).set(SqlTraceContextHolder.get());
 
         super.channelRead(ctx, msg);
     }
 
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-        try {
-            // 2. 통합 로깅 수행 (객체 상태의 msg를 로깅)
-            logNetty(ctx, requestMsg, msg, null);
-        } finally {
-            // 3. 컨텍스트 정리 후 다음 핸들러(인코더)로 전달
-            super.write(ctx, msg, promise);
-        }
+        String responseData = safeToString(msg);
+
+        // write 완료 후 로깅 수행 (Chunked write 및 성공 여부 확인을 위해 Listener 사용)
+        promise.addListener(future -> {
+            try {
+                logNetty(ctx, responseData, future.isSuccess() ? null :
+                        (future.cause() instanceof Exception e ? e : new RuntimeException(future.cause())));
+            } finally {
+                clearContext(ctx);
+            }
+        });
+
+        super.write(ctx, msg, promise);
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        if (cause instanceof Exception exception) logNetty(ctx, requestMsg, null, exception);
-        else logNetty(ctx, requestMsg, null, new RuntimeException(cause));
+        Exception ex = cause instanceof Exception ? (Exception) cause : new RuntimeException(cause);
+        try {
+            logNetty(ctx, null, ex);
+        } finally {
+            clearContext(ctx);
+        }
         super.exceptionCaught(ctx, cause);
     }
 
-    private void logNetty(ChannelHandlerContext ctx, Object req, Object res, Exception ex) {
-        if (MDC.get("traceId") == null) return;
+    private void logNetty(ChannelHandlerContext ctx, String resData, Exception ex) {
+        String traceId = ctx.channel().attr(TRACE_ID_KEY).get();
+        if (traceId == null) return;
 
-        double elapsedMs = (System.nanoTime() - startNano) / 1_000_000.0;
+        // MDC 복구 (Netty EventLoop 스레드에서 실행될 때 유효)
+        MDC.put("traceId", traceId);
+
+        Long startNano = ctx.channel().attr(START_NANO_KEY).get();
+        double elapsedMs = (startNano != null) ? (System.nanoTime() - startNano) / 1_000_000.0 : 0;
+
         String clientIp = ctx.channel().attr(realIpKey).get();
         if (clientIp == null) {
             clientIp = ctx.channel().remoteAddress().toString();
         }
 
-        LogNettyContext nettyContext = new LogNettyContext.Builder()
+        String reqData = ctx.channel().attr(REQUEST_DATA_KEY).get();
+        SqlTraceContext sqlCtx = ctx.channel().attr(SQL_CONTEXT_KEY).get();
+
+        LogNettyContext.Builder builder = new LogNettyContext.Builder()
                 .interfaceId("NETTY_TCP")
                 .clientIp(clientIp)
                 .method("TCP")
                 .status(ex == null ? "OK" : "ERROR")
                 .elapsedMs(elapsedMs)
-                .requestData(req != null ? req.toString() : "")
-                .responseData(res != null ? res.toString() : "")
-                .ex(ex)
-                .build();
+                .requestData(reqData != null ? reqData : "")
+                .responseData(resData != null ? resData : "")
+                .ex(ex);
 
-        logProcessor.logNetty(nettyContext);
+        if (sqlCtx != null) {
+            builder.sqlCount(sqlCtx.count())
+                   .sqlTotalElapsed(sqlCtx.getTotalElapsed());
+        }
 
+        logProcessor.logNetty(builder.build());
+    }
+
+    private void clearContext(ChannelHandlerContext ctx) {
+        // 채널 속성 정리
+        ctx.channel().attr(START_NANO_KEY).set(null);
+        ctx.channel().attr(TRACE_ID_KEY).set(null);
+        ctx.channel().attr(REQUEST_DATA_KEY).set(null);
+        ctx.channel().attr(SQL_CONTEXT_KEY).set(null);
+
+        // 스레드 로컬 정리
         SqlTraceContextHolder.clear();
         TraceContextHolder.clear();
         MDC.clear();
+    }
+
+    private String safeToString(Object msg) {
+        if (msg == null) return "";
+        if (msg instanceof String s) return s;
+        if (msg instanceof io.netty.buffer.ByteBuf buf) {
+            // ByteBuf의 내용을 읽되, 포인터는 유지
+            return buf.toString(java.nio.charset.StandardCharsets.UTF_8);
+        }
+        return msg.toString();
     }
 }

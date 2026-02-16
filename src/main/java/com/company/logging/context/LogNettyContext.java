@@ -8,6 +8,8 @@ public class LogNettyContext implements LogContext {
     private double elapsedMs;
     private String requestData;
     private String responseData;
+    private int sqlCount;
+    private long sqlTotalElapsed;
     private Exception ex;
 
     LogNettyContext(Builder builder) {
@@ -18,6 +20,8 @@ public class LogNettyContext implements LogContext {
         this.setElapsedMs(builder.elapsedMs);
         this.setRequestData(builder.requestData);
         this.setResponseData(builder.responseData);
+        this.setSqlCount(builder.sqlCount);
+        this.setSqlTotalElapsed(builder.sqlTotalElapsed);
         this.setEx(builder.ex);
     }
 
@@ -77,6 +81,22 @@ public class LogNettyContext implements LogContext {
         this.responseData = responseData;
     }
 
+    public int getSqlCount() {
+        return sqlCount;
+    }
+
+    public void setSqlCount(int sqlCount) {
+        this.sqlCount = sqlCount;
+    }
+
+    public long getSqlTotalElapsed() {
+        return sqlTotalElapsed;
+    }
+
+    public void setSqlTotalElapsed(long sqlTotalElapsed) {
+        this.sqlTotalElapsed = sqlTotalElapsed;
+    }
+
     public Exception getEx() {
         return ex;
     }
@@ -93,6 +113,8 @@ public class LogNettyContext implements LogContext {
         private double elapsedMs;
         private String requestData;
         private String responseData;
+        private int sqlCount;
+        private long sqlTotalElapsed;
         private Exception ex;
 
         public Builder interfaceId(String interfaceId) {
@@ -127,6 +149,16 @@ public class LogNettyContext implements LogContext {
 
         public Builder responseData(String responseData) {
             this.responseData = responseData;
+            return this;
+        }
+
+        public Builder sqlCount(int sqlCount) {
+            this.sqlCount = sqlCount;
+            return this;
+        }
+
+        public Builder sqlTotalElapsed(long sqlTotalElapsed) {
+            this.sqlTotalElapsed = sqlTotalElapsed;
             return this;
         }
 

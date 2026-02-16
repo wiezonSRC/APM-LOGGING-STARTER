@@ -105,6 +105,15 @@ public class LogProcessor {
 
         // 1. [NETTY 요약]
         if (logger.isInfoEnabled()) {
+            int sqlCount = ctx.getSqlCount();
+            long sqlElapsed = ctx.getSqlTotalElapsed();
+
+            // 만약 context에 설정되지 않았다면 (ThreadLocal fallback)
+            if (sqlCount == 0 && sqlElapsed == 0 && SqlTraceContextHolder.get() != null) {
+                sqlCount = SqlTraceContextHolder.get().count();
+                sqlElapsed = SqlTraceContextHolder.get().getTotalElapsed();
+            }
+
             logger.info("{} trace_id={} interface_id={} client_ip={} method={} status={} elapsed={}ms sql_count={} sql_elapsed={}ms",
                     LogMarker.NETTY_PROD,
                     traceId,
@@ -113,8 +122,8 @@ public class LogProcessor {
                     ctx.getMethod(),
                     ctx.getStatus(),
                     String.format("%.3f", ctx.getElapsedMs()),
-                    SqlTraceContextHolder.get().count(),
-                    SqlTraceContextHolder.get().getTotalElapsed()
+                    sqlCount,
+                    sqlElapsed
             );
         }
 
