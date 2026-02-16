@@ -5,7 +5,7 @@ public enum LogMarker {
     REQ_BODY("[REQ_BODY]"),
     RES_BODY("[RES_BODY]"),
     NETTY_PROD("[NETTY_PROD]"),
-    NETTY_DAYA("[NETTY_DAYA]"),
+    NETTY_DATA("[NETTY_DATA]"),
     BATCH_PROD("[BATCH_PROD]"),
     SQL("[SQL]"),
     SLOW_SQL("[SLOW_SQL]"),

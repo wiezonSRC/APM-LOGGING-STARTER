@@ -120,7 +120,7 @@ public class LogProcessor {
 
         // 2. [DATA]
         logger.info("{} trace_id={} request_data={} response_data={}",
-                LogMarker.NETTY_DAYA,
+                LogMarker.NETTY_DATA,
                 traceId,
                 ctx.getRequestData(),
                 ctx.getResponseData());
