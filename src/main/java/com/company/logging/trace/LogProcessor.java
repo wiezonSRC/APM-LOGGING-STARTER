@@ -53,7 +53,7 @@ public class LogProcessor {
 
         // 1. [API 요약] (소수점 3자리까지 ms 출력)
         if (logger.isInfoEnabled()) {
-            logger.info("{} trace_id={} interface_id={} uri={} method={} status={} elapsed={}ms sql_count={} sql_elapsed={}ms",
+            logger.info("[{}] trace_id={} interface_id={} uri={} method={} status={} elapsed={}ms sql_count={} sql_elapsed={}ms",
                     LogMarker.API_PROD,
                     traceId,
                     ctx.getInterfaceId(),
@@ -68,13 +68,13 @@ public class LogProcessor {
 
         // 2. [BODY]
         if (!ctx.isBinaryRequest()) {
-            logger.info("{} trace_id={} request_param={} request_body={}",
+            logger.info("[{}] trace_id={} request_param={} request_body={}",
                     LogMarker.REQ_BODY,
                     traceId,
                     ctx.getRequestParam(),
                     ctx.getRequestBody());
             if (!ctx.isBinaryResponse() && ctx.getResponseBody() != null) {
-                logger.info("{} trace_id={} response_body={}",
+                logger.info("[{}] trace_id={} response_body={}",
                         LogMarker.RES_BODY,
                         traceId,
                         ctx.getResponseBody());
@@ -114,7 +114,7 @@ public class LogProcessor {
                 sqlElapsed = SqlTraceContextHolder.get().getTotalElapsed();
             }
 
-            logger.info("{} trace_id={} interface_id={} client_ip={} method={} status={} elapsed={}ms sql_count={} sql_elapsed={}ms",
+            logger.info("[{}] trace_id={} interface_id={} client_ip={} method={} status={} elapsed={}ms sql_count={} sql_elapsed={}ms",
                     LogMarker.NETTY_PROD,
                     traceId,
                     ctx.getInterfaceId(),
@@ -128,7 +128,7 @@ public class LogProcessor {
         }
 
         // 2. [DATA]
-        logger.info("{} trace_id={} request_data={} response_data={}",
+        logger.info("[{}] trace_id={} request_data={} response_data={}",
                 LogMarker.NETTY_DATA,
                 traceId,
                 ctx.getRequestData(),
@@ -157,7 +157,7 @@ public class LogProcessor {
 
         // 1. [BATCH 요약]
         if (logger.isInfoEnabled()) {
-            logger.info("{} trace_id={} job_name={} step_name={} status={} elapsed={}ms sql_count={} sql_elapsed={}ms",
+            logger.info("[{}] trace_id={} job_name={} step_name={} status={} elapsed={}ms sql_count={} sql_elapsed={}ms",
                     LogMarker.BATCH_PROD,
                     traceId,
                     ctx.getJobName(),
@@ -177,7 +177,7 @@ public class LogProcessor {
     }
 
     private void logException(LogContext ctx, String traceId) {
-        logger.info("{} trace_id={} message={}",
+        logger.info("[{}] trace_id={} message={}",
                 LogMarker.EXCEPTION,
                 traceId,
                 ctx.getEx().getMessage(),
@@ -203,13 +203,13 @@ public class LogProcessor {
             String formattedSql = prettySqlLog(sql.getSql());
 
             if (isSlow) {
-                logger.info("{} trace_id={} sql_id={} elapsed={}ms query=\"{}\"",
+                logger.info("[{}] trace_id={} sql_id={} elapsed={}ms query=\"{}\"",
                         LogMarker.SLOW_SQL, traceId, sql.getSqlId(), sql.getElapsed(), formattedSql);
             } else if (level == TraceLevel.TRACE || isError) {
-                logger.info("{} trace_id={} sql_id={} elapsed={}ms query=\"{}\"",
+                logger.info("[{}] trace_id={} sql_id={} elapsed={}ms query=\"{}\"",
                         LogMarker.SQL, traceId, sql.getSqlId(), sql.getElapsed(), formattedSql);
             } else if (level == TraceLevel.DEBUG) {
-                logger.info("{} trace_id={} sql_id={} elapsed={}ms param={}",
+                logger.info("[{}] trace_id={} sql_id={} elapsed={}ms param={}",
                         LogMarker.SQL, traceId, sql.getSqlId(), sql.getElapsed(), sql.getSqlParam());
             }
         }
