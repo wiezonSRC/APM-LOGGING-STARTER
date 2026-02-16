@@ -61,8 +61,8 @@ public class NettyTraceDuplexHandler extends ChannelDuplexHandler {
         // write 완료 후 로깅 수행 (Chunked write 및 성공 여부 확인을 위해 Listener 사용)
         promise.addListener(future -> {
             try {
-                logNetty(ctx, responseData, future.isSuccess() ? null :
-                        (future.cause() instanceof Exception e ? e : new RuntimeException(future.cause())));
+                if (future.isSuccess()) logNetty(ctx, responseData, null);
+                else logNetty(ctx, responseData, future.cause() instanceof Exception e ? e : new RuntimeException(future.cause()));
             } finally {
                 clearContext(ctx);
             }
@@ -73,7 +73,10 @@ public class NettyTraceDuplexHandler extends ChannelDuplexHandler {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        Exception ex = cause instanceof Exception ? (Exception) cause : new RuntimeException(cause);
+        Exception ex;
+        if (cause instanceof Exception exception) ex = exception;
+        else ex = new RuntimeException(cause);
+
         try {
             logNetty(ctx, null, ex);
         } finally {
