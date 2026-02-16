@@ -2,3 +2,4 @@ com.company.logging.config.LoggingWebAutoConfiguration
 com.company.logging.config.LoggingMybatisAutoConfiguration
 com.company.logging.config.LoggingBatchAutoConfiguration
 com.company.logging.config.NettyLoggingAutoConfiguration
+com.company.logging.config.LoggingCoreAutoConfiguration
