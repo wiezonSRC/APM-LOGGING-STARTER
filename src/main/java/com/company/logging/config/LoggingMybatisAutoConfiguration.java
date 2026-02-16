@@ -52,8 +52,6 @@ public class LoggingMybatisAutoConfiguration {
     public ConfigurationCustomizer sqlTraceConfigurationCustomizer(
             SqlTraceInterceptor interceptor
     ) {
-        return configuration -> {
-            configuration.addInterceptor(interceptor);
-        };
+        return configuration -> configuration.addInterceptor(interceptor);
     }
 }

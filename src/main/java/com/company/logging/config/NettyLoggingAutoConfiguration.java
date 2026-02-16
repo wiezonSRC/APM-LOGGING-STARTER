@@ -1,8 +1,6 @@
 package com.company.logging.config;
 
-import com.company.logging.netty.NettyTraceDuplexHandler;
 import io.netty.channel.ChannelHandler;
-import io.netty.util.AttributeKey;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.context.annotation.Configuration;
 

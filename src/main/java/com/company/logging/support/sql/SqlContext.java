@@ -1,4 +1,4 @@
-package com.company.logging.support.SqlUtil;
+package com.company.logging.support.sql;
 
 /**
  * SQL 파싱 상태를 나타내는 열거형입니다.

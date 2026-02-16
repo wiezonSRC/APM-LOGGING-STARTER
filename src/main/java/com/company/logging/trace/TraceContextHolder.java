@@ -10,6 +10,7 @@ public class TraceContextHolder {
     private static final ThreadLocal<TraceLevel> LEVEL = new ThreadLocal<>();
     private static final ThreadLocal<Boolean> FORCE_TRACE = new ThreadLocal<>();
 
+    private TraceContextHolder() {}
     /**
      * 컨텍스트를 초기화합니다.
      * @param level 추적 레벨

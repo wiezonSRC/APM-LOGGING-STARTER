@@ -1,6 +1,6 @@
 package com.company.logging.sql;
 
-import com.company.logging.support.SqlUtil.SQLUtil;
+import com.company.logging.support.sql.SQLUtil;
 import org.apache.ibatis.executor.Executor;
 import org.apache.ibatis.mapping.BoundSql;
 import org.apache.ibatis.mapping.MappedStatement;
