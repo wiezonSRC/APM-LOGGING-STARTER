@@ -170,24 +170,14 @@
 
 
 
-| 로그 유형 | 검색 키워드 | 주요 포함 정보 |
-
-| :--- | :--- | :--- |
-
-| **API 요약** | `[API_PROD]` | interface_id, status, elapsed, sql_count |
-
-| **Netty 요약** | `[NETTY_PROD]` | interface_id, client_ip, status, elapsed |
-
-| **Batch 요약** | `[BATCH_PROD]` | job_name, step_name, status, elapsed |
-
-| **요청/응답 본문** | `[REQ_BODY]`, `[RES_BODY]` | request_body, response_body |
-
-| **Netty 데이터** | `[NETTY_DATA]` | request_data, response_data |
-
-| **일반 SQL** | `[SQL]` | sql_id, elapsed, query/param |
-
-| **슬로우 쿼리** | `[SLOW_SQL]` | sql_id, elapsed, query |
-
-| **예외 발생** | `[EXCEPTION]` | message, stacktrace |
-
+|  로그 유형        | 검색 키워드 | 주요 포함 정보 |
+|---------------|-------------|----------------|
+| **API 요약**    | `[API_PROD]` | `interface_id`, `status`, `elapsed`, `sql_count` |
+| **Netty 요약**  | `[NETTY_PROD]` | `interface_id`, `client_ip`, `status`, `elapsed` |
+| **Batch 요약**  | `[BATCH_PROD]` | `job_name`, `step_name`, `status`, `elapsed` |
+| **요청/응답 본문**  | `[REQ_BODY]`, `[RES_BODY]` | `request_body`, `response_body` |
+| **Netty 데이터** | `[NETTY_DATA]` | `request_data`, `response_data` |
+| **일반 SQL**    | `[SQL]` | `sql_id`, `elapsed`, `query`, `param` |
+| **슬로우 쿼리**    | `[SLOW_SQL]` | `sql_id`, `elapsed`, `query` |
+| **예외 발생**     | `[EXCEPTION]` | `message`, `stacktrace` |
 
