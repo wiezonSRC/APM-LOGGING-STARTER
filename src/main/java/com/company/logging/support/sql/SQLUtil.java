@@ -1,4 +1,4 @@
-package com.company.logging.support.SqlUtil;
+package com.company.logging.support.sql.util;
 
 import org.apache.ibatis.mapping.BoundSql;
 import org.apache.ibatis.mapping.MappedStatement;
