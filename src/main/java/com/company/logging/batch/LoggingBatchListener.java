@@ -1,5 +1,6 @@
 package com.company.logging.batch;
 
+import com.company.logging.context.LogBatchContext;
 import com.company.logging.config.LoggingProperties;
 import com.company.logging.sql.SqlTraceContextHolder;
 import com.company.logging.trace.LogProcessor;
@@ -10,6 +11,7 @@ import org.springframework.batch.core.JobExecution;
 import org.springframework.batch.core.JobExecutionListener;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.StepExecutionListener;
+import org.springframework.lang.NonNull;
 
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
@@ -28,7 +30,7 @@ public class LoggingBatchListener implements JobExecutionListener, StepExecution
     }
 
     @Override
-    public void beforeJob(JobExecution jobExecution) {
+    public void beforeJob(@NonNull JobExecution jobExecution) {
         initContext();
     }
 
@@ -47,20 +49,22 @@ public class LoggingBatchListener implements JobExecutionListener, StepExecution
                 else ex = new RuntimeException(t);
             }
 
-            logProcessor.logBatch(
-                    jobExecution.getJobInstance().getJobName(),
-                    "JOB",
-                    jobExecution.getStatus().toString(),
-                    elapsedMs,
-                    ex
-            );
+            LogBatchContext batchContext = new LogBatchContext.Builder()
+                    .jobName(jobExecution.getJobInstance().getJobName())
+                    .stepName("JOB")
+                    .status(jobExecution.getStatus().toString())
+                    .elapsedMs(elapsedMs)
+                    .ex(ex)
+                    .build();
+
+            logProcessor.logBatch(batchContext);
         } finally {
             clearContext();
         }
     }
 
     @Override
-    public void beforeStep(StepExecution stepExecution) {
+    public void beforeStep(@NonNull StepExecution stepExecution) {
         if (MDC.get("traceId") == null) {
             initContext();
         }
@@ -81,13 +85,15 @@ public class LoggingBatchListener implements JobExecutionListener, StepExecution
             else ex = new RuntimeException(t);
         }
 
-        logProcessor.logBatch(
-                stepExecution.getJobExecution().getJobInstance().getJobName(),
-                stepExecution.getStepName(),
-                stepExecution.getStatus().toString(),
-                elapsedMs,
-                ex
-        );
+        LogBatchContext batchContext = new LogBatchContext.Builder()
+                .jobName(stepExecution.getJobExecution().getJobInstance().getJobName())
+                .stepName(stepExecution.getStepName())
+                .status(stepExecution.getStatus().toString())
+                .elapsedMs(elapsedMs)
+                .ex(ex)
+                .build();
+
+        logProcessor.logBatch(batchContext);
         SqlTraceContextHolder.clear();
         return null;
     }

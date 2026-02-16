@@ -1,5 +1,6 @@
 package com.company.logging.netty;
 
+import com.company.logging.context.LogNettyContext;
 import com.company.logging.config.LoggingProperties;
 import com.company.logging.sql.SqlTraceContextHolder;
 import com.company.logging.trace.LogProcessor;
@@ -9,6 +10,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.util.AttributeKey;
 import org.slf4j.MDC;
+import org.springframework.lang.NonNull;
 
 import java.util.UUID;
 
@@ -31,7 +33,7 @@ public class NettyTraceDuplexHandler extends ChannelDuplexHandler {
     }
 
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+    public void channelRead(@NonNull ChannelHandlerContext ctx,@NonNull Object msg) throws Exception {
         this.startNano = System.nanoTime();
         this.requestMsg = msg;
 
@@ -57,7 +59,8 @@ public class NettyTraceDuplexHandler extends ChannelDuplexHandler {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        logNetty(ctx, requestMsg, null, cause instanceof Exception ? (Exception) cause : new RuntimeException(cause));
+        if (cause instanceof Exception exception) logNetty(ctx, requestMsg, null, exception);
+        else logNetty(ctx, requestMsg, null, new RuntimeException(cause));
         super.exceptionCaught(ctx, cause);
     }
 
@@ -70,19 +73,18 @@ public class NettyTraceDuplexHandler extends ChannelDuplexHandler {
             clientIp = ctx.channel().remoteAddress().toString();
         }
 
-        logProcessor.logApi(
-                "NETTY_TCP",
-                clientIp,
-                "TCP",
-                ex == null ? "OK" : "ERROR",
-                elapsedMs,
-                "", 
-                req != null ? req.toString() : "", 
-                res != null ? res.toString() : "", 
-                false,
-                false,
-                ex
-        );
+        LogNettyContext nettyContext = new LogNettyContext.Builder()
+                .interfaceId("NETTY_TCP")
+                .clientIp(clientIp)
+                .method("TCP")
+                .status(ex == null ? "OK" : "ERROR")
+                .elapsedMs(elapsedMs)
+                .requestData(req != null ? req.toString() : "")
+                .responseData(res != null ? res.toString() : "")
+                .ex(ex)
+                .build();
+
+        logProcessor.logNetty(nettyContext);
 
         SqlTraceContextHolder.clear();
         TraceContextHolder.clear();

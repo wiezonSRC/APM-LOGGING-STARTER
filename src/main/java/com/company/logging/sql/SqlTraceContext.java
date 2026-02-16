@@ -1,5 +1,6 @@
 package com.company.logging.sql;
 
+import com.company.logging.context.LogSqlContext;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -9,7 +10,7 @@ import java.util.List;
  */
 public class SqlTraceContext {
 
-    private final List<SqlTrace> traces = new ArrayList<>();
+    private final List<LogSqlContext> traces = new ArrayList<>();
     private long totalElapsed = 0;
 
     /**
@@ -20,11 +21,16 @@ public class SqlTraceContext {
      * @param elapsed 소요 시간(ms)
      */
     public void add(String sqlId, String sql, String sqlParam, long elapsed){
-        traces.add(new SqlTrace(sqlId, sql, sqlParam, elapsed));
+        traces.add(new LogSqlContext.Builder()
+                .sqlId(sqlId)
+                .sql(sql)
+                .sqlParam(sqlParam)
+                .elapsed(elapsed)
+                .build());
         totalElapsed += elapsed;
     }
 
-    public List<SqlTrace> getTraces(){
+    public List<LogSqlContext> getTraces(){
         return traces;
     }
 

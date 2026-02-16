@@ -1,5 +1,6 @@
 package com.company.logging.sql;
 
+import com.company.logging.context.LogSqlContext;
 import java.util.List;
 
 /**
@@ -7,20 +8,20 @@ import java.util.List;
  */
 public class SqlTraceContextHolder {
 
-    private static ThreadLocal<SqlTraceContext> CTX = new ThreadLocal<>();
-
+    private static final ThreadLocal<SqlTraceContext> contextThreadLocal = new ThreadLocal<>();
+    private SqlTraceContextHolder() {}
     /**
      * 컨텍스트를 초기화합니다. 요청 시작 시 호출되어야 합니다.
      */
     public static void init(){
-        CTX.set(new SqlTraceContext());
+        contextThreadLocal.set(new SqlTraceContext());
     }
 
     /**
      * 현재 스레드에 저장된 모든 SQL 추적 목록을 반환합니다.
      */
-    public static List<SqlTrace> getAll(){
-        SqlTraceContext ctx = CTX.get();
+    public static List<LogSqlContext> getAll(){
+        SqlTraceContext ctx = contextThreadLocal.get();
         return ctx != null ? ctx.getTraces() : List.of();
     }
 
@@ -28,7 +29,7 @@ public class SqlTraceContextHolder {
      * 현재 스레드의 SqlTraceContext를 반환합니다.
      */
     public static SqlTraceContext get(){
-        return CTX.get();
+        return contextThreadLocal.get();
     }
 
     /**
@@ -37,8 +38,8 @@ public class SqlTraceContextHolder {
     public static long totalElapsed(){
         long total = 0;
         
-        if(CTX.get() != null){
-            total = CTX.get().getTotalElapsed();
+        if(contextThreadLocal.get() != null){
+            total = contextThreadLocal.get().getTotalElapsed();
         }
 
         return total;
@@ -48,7 +49,7 @@ public class SqlTraceContextHolder {
      * 컨텍스트를 제거합니다. 요청 종료 시 호출되어야 합니다.
      */
     public static void clear(){
-        CTX.remove();
+        contextThreadLocal.remove();
     }
 
 }

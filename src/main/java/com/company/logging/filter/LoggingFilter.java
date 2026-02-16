@@ -2,29 +2,23 @@ package com.company.logging.filter;
 
 import com.company.logging.config.LoggingProperties;
 import com.company.logging.trace.LogProcessor;
-import com.company.logging.sql.SqlTrace;
-import com.company.logging.sql.SqlTraceContext;
 import com.company.logging.sql.SqlTraceContextHolder;
 import com.company.logging.trace.TraceContextHolder;
 import com.company.logging.trace.TraceLevel;
 import com.company.logging.wrapper.RequestWrapper;
 import com.company.logging.wrapper.ResponseWrapper;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.common.lang.NonNull;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
+
+import com.company.logging.context.LogApiContext;
 
 /**
  * HTTP 요청과 응답, 그리고 관련된 SQL 추적 정보를 로깅하는 필터입니다.
@@ -37,14 +31,6 @@ public class LoggingFilter extends OncePerRequestFilter {
 
     private final LoggingProperties properties;
     private final LogProcessor logProcessor;
-    private final Logger logger = LoggerFactory.getLogger("Log");
-
-    // 에러 코드로 간주할 JSON 키 목록
-    private static final Set<String> ERROR_CODE_KEYS = Set.of(
-            "resCode",
-            "res_cd",
-            "code"
-    );
 
     public LoggingFilter(LoggingProperties properties){
         this.properties = properties;
@@ -61,12 +47,10 @@ public class LoggingFilter extends OncePerRequestFilter {
      */
     @Override
     protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+                                    @NonNull HttpServletResponse response,
+                                    @NonNull FilterChain filterChain) throws ServletException, IOException {
 
         TraceLevel level=properties.getTrace().getLevel();
-        int queryMs=properties.getSlow().getQuery().getMs();
-        int queryTotalMs=properties.getSlow().getQuery().getTotalMs();
 
         // Trace ID 생성 및 MDC 설정
         String traceId = UUID.randomUUID().toString();
@@ -120,19 +104,21 @@ public class LoggingFilter extends OncePerRequestFilter {
         boolean isBinaryRes = (res != null && isBinaryResponse(res));
         String status = (res != null) ? String.valueOf(res.getStatus()) : "-";
 
-        logProcessor.logApi(
-                req.getHeader("IFID"),
-                req.getRequestURI(),
-                req.getMethod(),
-                status,
-                elapsedMs,
-                req.getParameterMap().toString(),
-                req.getBody(),
-                responseBody,
-                isBinaryRequest,
-                isBinaryRes,
-                ex
-        );
+        LogApiContext apiContext = new LogApiContext.Builder()
+                .interfaceId(req.getHeader("IFID"))
+                .uri(req.getRequestURI())
+                .method(req.getMethod())
+                .status(status)
+                .elapsedMs(elapsedMs)
+                .requestParam(req.getParameterMap().toString())
+                .requestBody(req.getBody())
+                .responseBody(responseBody)
+                .isBinaryRequest(isBinaryRequest)
+                .isBinaryResponse(isBinaryRes)
+                .ex(ex)
+                .build();
+
+        logProcessor.logApi(apiContext);
     }
 
     /**
@@ -179,58 +165,8 @@ public class LoggingFilter extends OncePerRequestFilter {
         );
     }
 
-    /**
-     * 응답 본문에 특정 에러 코드가 포함되어 있는지 검사합니다.
-     */
-    private boolean hasErrorCode(ResponseWrapper res){
-        String body = res.getBodyAsString();
-        if(body == null || body.isEmpty()) return false;
 
-        try{
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode root = mapper.readTree(body);
 
-            return containsErrorCode(root);
-        }catch(Exception e){
-            return false;
-        }
-    }
-
-    /**
-     * JSON 노드를 재귀적으로 순회하며 에러 키와 값을 찾습니다.
-     */
-    private boolean containsErrorCode(JsonNode node) {
-
-        if (node.isObject()) {
-            Iterator<Map.Entry<String, JsonNode>> fields = node.fields();
-
-            while (fields.hasNext()) {
-                Map.Entry<String, JsonNode> entry = fields.next();
-                String key = entry.getKey();
-                JsonNode value = entry.getValue();
-
-                if (ERROR_CODE_KEYS.contains(key)) {
-                    if ("9999".equals(value.asText())) {
-                        return true;
-                    }
-                }
-
-                if (containsErrorCode(value)) {
-                    return true;
-                }
-            }
-        }
-
-        if (node.isArray()) {
-            for (JsonNode child : node) {
-                if (containsErrorCode(child)) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
 
 
 
