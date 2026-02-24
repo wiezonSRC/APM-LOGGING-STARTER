@@ -123,7 +123,7 @@ public class LogNettyContext implements LogContext {
             return this;
         }
 
-        public Builder totalElapsed(long sqlTotalElapsed) {
+        public Builder sqlTotalElapsed(long sqlTotalElapsed) {
             this.sqlTotalElapsed = sqlTotalElapsed;
             return this;
         }

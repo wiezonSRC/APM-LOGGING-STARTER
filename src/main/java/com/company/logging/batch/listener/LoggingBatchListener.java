@@ -5,7 +5,6 @@ import com.company.logging.batch.process.BatchLogProcessor;
 import com.company.logging.core.config.LoggingProperties;
 import com.company.logging.core.sql.SqlTraceContextHolder;
 import com.company.logging.core.context.TraceContextHolder;
-import org.slf4j.MDC;
 import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.JobExecution;
 import org.springframework.batch.core.JobExecutionListener;
@@ -79,10 +78,6 @@ public class LoggingBatchListener implements JobExecutionListener, StepExecution
 
     @Override
     public void beforeStep(@NonNull StepExecution stepExecution) {
-        String traceId = stepExecution.getJobExecution()
-                            .getExecutionContext()
-                            .getString("traceId");
-
         SqlTraceContextHolder.init();
     }
 
