@@ -30,11 +30,12 @@ public class ServletLogProcessor extends AbstractLogProcessor<LogApiContext> {
 
     @Override
     public void logApi(LogApiContext ctx) {
-        String traceId = MDC.get("traceId");
+        String traceId = ctx.getTraceId();
         TraceLevel level = resolveLevel();
 
         boolean isError = ctx.getEx() != null || hasErrorCode(ctx.getResponseBody());
 
+        // 1. 기본 요약 로그 (PROD 레벨)
         logger.info(
                 "[{}] trace_id={} interface_id={} uri={} method={} status={} elapsed={}ms",
                 LogMarker.API_PROD,
@@ -43,8 +44,20 @@ public class ServletLogProcessor extends AbstractLogProcessor<LogApiContext> {
                 ctx.getUri(),
                 ctx.getMethod(),
                 ctx.getStatus(),
-                String.format("%.3f", ctx.getElapsedMs())
+                ctx.getElapsedMs()
         );
+
+        // 2. 상세 상세 로그 (DEBUG/TRACE 레벨이거나 에러일 때)
+        if (level == TraceLevel.DEBUG || level == TraceLevel.TRACE || isError) {
+            logger.info(
+                    "[{}] trace_id={} params={} request={} response={}",
+                    LogMarker.API_DEBUG,
+                    traceId,
+                    ctx.getRequestParam(),
+                    ctx.getRequestBody(),
+                    ctx.getResponseBody()
+            );
+        }
 
         logSqlDetails(traceId, level, isError);
         logException(ctx, traceId);

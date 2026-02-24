@@ -2,6 +2,8 @@ package com.company.logging.core.enums;
 
 public enum LogMarker {
     API_PROD("[API_PROD]"),
+    API_DEBUG("[API_DEBUG]"),
+    API_TRACE("[API_TRACE]"),
     REQ_BODY("[REQ_BODY]"),
     RES_BODY("[RES_BODY]"),
     NETTY_PROD("[NETTY_PROD]"),

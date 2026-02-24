@@ -9,12 +9,10 @@ public class LogApiContext implements LogContext {
     private final String uri;
     private final String method;
     private final String status;
-    private final double elapsedMs;
+    private final long elapsedMs;
     private final String requestParam;
     private final String requestBody;
     private final String responseBody;
-    private final boolean isBinaryRequest;
-    private final boolean isBinaryResponse;
     private final Exception ex;
 
     LogApiContext(Builder builder) {
@@ -27,8 +25,6 @@ public class LogApiContext implements LogContext {
         this.requestParam = builder.requestParam;
         this.responseBody = builder.responseBody;
         this.requestBody = builder.requestBody;
-        this.isBinaryRequest = builder.binaryRequest;
-        this.isBinaryResponse = builder.binaryResponse;
         this.ex = builder.exception;
     }
 
@@ -48,7 +44,7 @@ public class LogApiContext implements LogContext {
     public String getStatus() {
         return status;
     }
-    public double getElapsedMs() {
+    public long getElapsedMs() {
         return elapsedMs;
     }
     public String getResponseBody() {
@@ -63,12 +59,7 @@ public class LogApiContext implements LogContext {
     public String getRequestBody() {
         return requestBody;
     }
-    public boolean isBinaryRequest() {
-        return isBinaryRequest;
-    }
-    public boolean isBinaryResponse() {
-        return isBinaryResponse;
-    }
+
 
 
     public static class Builder{
@@ -78,12 +69,10 @@ public class LogApiContext implements LogContext {
         private String uri;
         private String method;
         private String status;
-        private double elapsedMs;
+        private long elapsedMs;
         private String requestParam;
         private String requestBody;
         private String responseBody;
-        private boolean binaryRequest;
-        private boolean binaryResponse;
         private Exception exception;
 
         public Builder traceId(String traceId){
@@ -106,7 +95,7 @@ public class LogApiContext implements LogContext {
             this.status = status;
             return this;
         }
-        public Builder elapsedMs(double elapsedMs) {
+        public Builder elapsedMs(long elapsedMs) {
             this.elapsedMs = elapsedMs;
             return this;
         }
@@ -120,14 +109,6 @@ public class LogApiContext implements LogContext {
         }
         public Builder responseBody(String responseBody) {
             this.responseBody = responseBody;
-            return this;
-        }
-        public Builder isBinaryRequest(boolean binaryRequest) {
-            this.binaryRequest = binaryRequest;
-            return this;
-        }
-        public Builder isBinaryResponse(boolean binaryResponse) {
-            this.binaryResponse = binaryResponse;
             return this;
         }
         public Builder ex(Exception exception) {
