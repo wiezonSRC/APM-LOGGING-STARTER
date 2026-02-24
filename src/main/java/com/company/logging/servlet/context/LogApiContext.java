@@ -4,128 +4,70 @@ package com.company.logging.servlet.context;
 import com.company.logging.core.context.LogContext;
 
 public class LogApiContext implements LogContext {
-    private String traceId;
-    private String interfaceId;
-    private String uri;
-    private String method;
-    private String status;
-    private double elapsedMs;
-    private String requestParam;
-    private String requestBody;
-    private String responseBody;
-    private boolean isBinaryRequest;
-    private boolean isBinaryResponse;
-    private Exception ex;
+    private final String traceId;
+    private final String interfaceId;
+    private final String uri;
+    private final String method;
+    private final String status;
+    private final double elapsedMs;
+    private final String requestParam;
+    private final String requestBody;
+    private final String responseBody;
+    private final boolean isBinaryRequest;
+    private final boolean isBinaryResponse;
+    private final Exception ex;
 
     LogApiContext(Builder builder) {
-        this.setInterfaceId(builder.interfaceId);
-        this.setUri(builder.uri);
-        this.setMethod(builder.method);
-        this.setStatus(builder.status);
-        this.setElapsedMs(builder.elapsedMs);
-        this.setRequestParam(builder.requestParam);
-        this.setResponseBody(builder.responseBody);
-        this.setRequestBody(builder.requestBody);
-        this.setBinaryRequest(builder.binaryRequest);
-        this.setBinaryResponse(builder.binaryResponse);
-        this.setEx(builder.exception);
-    }
-
-    public String getInterfaceId() {
-        return interfaceId;
-    }
-
-    public void setInterfaceId(String interfaceId) {
-        this.interfaceId = interfaceId;
-    }
-
-    public String getUri() {
-        return uri;
-    }
-
-    public void setUri(String uri) {
-        this.uri = uri;
-    }
-
-    public String getMethod() {
-        return method;
-    }
-
-    public void setMethod(String method) {
-        this.method = method;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public double getElapsedMs() {
-        return elapsedMs;
-    }
-
-    public void setElapsedMs(double elapsedMs) {
-        this.elapsedMs = elapsedMs;
-    }
-
-    public String getRequestParam() {
-        return requestParam;
-    }
-
-    public void setRequestParam(String requestParam) {
-        this.requestParam = requestParam;
-    }
-
-    public String getRequestBody() {
-        return requestBody;
-    }
-
-    public void setRequestBody(String requestBody) {
-        this.requestBody = requestBody;
-    }
-
-    public String getResponseBody() {
-        return responseBody;
-    }
-
-    public void setResponseBody(String responseBody) {
-        this.responseBody = responseBody;
-    }
-
-    public boolean isBinaryRequest() {
-        return isBinaryRequest;
-    }
-
-    public void setBinaryRequest(boolean binaryRequest) {
-        isBinaryRequest = binaryRequest;
-    }
-
-    public boolean isBinaryResponse() {
-        return isBinaryResponse;
-    }
-
-    public void setBinaryResponse(boolean binaryResponse) {
-        isBinaryResponse = binaryResponse;
-    }
-
-    public Exception getEx() {
-        return ex;
-    }
-
-    public void setEx(Exception ex) {
-        this.ex = ex;
+        this.traceId = builder.traceId;
+        this.interfaceId = builder.interfaceId;
+        this.uri = builder.uri;
+        this.method =builder.method;
+        this.status =builder.status;
+        this.elapsedMs = builder.elapsedMs;
+        this.requestParam = builder.requestParam;
+        this.responseBody = builder.responseBody;
+        this.requestBody = builder.requestBody;
+        this.isBinaryRequest = builder.binaryRequest;
+        this.isBinaryResponse = builder.binaryResponse;
+        this.ex = builder.exception;
     }
 
     @Override
     public String getTraceId() {
         return traceId;
     }
-
-    public void setTraceId(String traceId) {
-        this.traceId = traceId;
+    public String getInterfaceId() {
+        return interfaceId;
+    }
+    public String getUri() {
+        return uri;
+    }
+    public String getMethod() {
+        return method;
+    }
+    public String getStatus() {
+        return status;
+    }
+    public double getElapsedMs() {
+        return elapsedMs;
+    }
+    public String getResponseBody() {
+        return responseBody;
+    }
+    public Exception getEx() {
+        return ex;
+    }
+    public String getRequestParam() {
+        return requestParam;
+    }
+    public String getRequestBody() {
+        return requestBody;
+    }
+    public boolean isBinaryRequest() {
+        return isBinaryRequest;
+    }
+    public boolean isBinaryResponse() {
+        return isBinaryResponse;
     }
 
 
