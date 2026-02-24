@@ -1,10 +1,10 @@
 package com.company.logging.servlet.filter;
 
 import com.company.logging.core.config.LoggingProperties;
-import com.company.logging.core.trace.LogProcessor;
 import com.company.logging.core.sql.SqlTraceContextHolder;
-import com.company.logging.core.trace.TraceContextHolder;
-import com.company.logging.core.trace.TraceLevel;
+import com.company.logging.core.context.TraceContextHolder;
+import com.company.logging.core.enums.TraceLevel;
+import com.company.logging.servlet.process.ServletLogProcessor;
 import com.company.logging.servlet.wrapper.RequestWrapper;
 import com.company.logging.servlet.wrapper.ResponseWrapper;
 import io.micrometer.common.lang.NonNull;
@@ -30,11 +30,11 @@ import com.company.logging.servlet.context.LogApiContext;
 public class LoggingFilter extends OncePerRequestFilter {
 
     private final LoggingProperties properties;
-    private final LogProcessor logProcessor;
+    private final ServletLogProcessor logProcessor;
 
     public LoggingFilter(LoggingProperties properties){
         this.properties = properties;
-        this.logProcessor = new LogProcessor(properties);
+        this.logProcessor = new ServletLogProcessor(properties);
     }
 
     /**

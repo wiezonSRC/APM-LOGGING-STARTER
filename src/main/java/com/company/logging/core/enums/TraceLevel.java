@@ -1,4 +1,4 @@
-package com.company.logging.core.trace;
+package com.company.logging.core.enums;
 
 /**
  * 로깅 레벨을 정의하는 열거형입니다.

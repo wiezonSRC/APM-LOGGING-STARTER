@@ -1,10 +1,10 @@
 package com.company.logging.batch.listener;
 
 import com.company.logging.batch.context.LogBatchContext;
+import com.company.logging.batch.process.BatchLogProcessor;
 import com.company.logging.core.config.LoggingProperties;
 import com.company.logging.core.sql.SqlTraceContextHolder;
-import com.company.logging.core.trace.LogProcessor;
-import com.company.logging.core.trace.TraceContextHolder;
+import com.company.logging.core.context.TraceContextHolder;
 import org.slf4j.MDC;
 import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.JobExecution;
@@ -21,12 +21,12 @@ import java.util.UUID;
  */
 public class LoggingBatchListener implements JobExecutionListener, StepExecutionListener {
 
-    private final LogProcessor logProcessor;
+    private final BatchLogProcessor logProcessor;
     private final LoggingProperties properties;
 
     public LoggingBatchListener(LoggingProperties properties) {
         this.properties = properties;
-        this.logProcessor = new LogProcessor(properties);
+        this.logProcessor = new BatchLogProcessor(properties);
     }
 
     @Override
@@ -60,7 +60,7 @@ public class LoggingBatchListener implements JobExecutionListener, StepExecution
                     .ex(ex)
                     .build();
 
-            logProcessor.logBatch(batchContext);
+            logProcessor.logApi(batchContext);
         } finally {
             clearContext();
         }
@@ -99,7 +99,7 @@ public class LoggingBatchListener implements JobExecutionListener, StepExecution
                 .ex(ex)
                 .build();
 
-        logProcessor.logBatch(batchContext);
+        logProcessor.logApi(batchContext);
         SqlTraceContextHolder.clear();
 
         return stepExecution.getExitStatus();

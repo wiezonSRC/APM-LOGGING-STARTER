@@ -4,8 +4,8 @@ import com.company.logging.netty.context.LogNettyContext;
 import com.company.logging.core.config.LoggingProperties;
 import com.company.logging.core.sql.SqlTraceContext;
 import com.company.logging.core.sql.SqlTraceContextHolder;
-import com.company.logging.core.trace.LogProcessor;
-import com.company.logging.core.trace.TraceContextHolder;
+import com.company.logging.core.context.TraceContextHolder;
+import com.company.logging.netty.process.NettyLogProcessor;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
@@ -20,7 +20,7 @@ import java.util.UUID;
  */
 public class NettyTraceDuplexHandler extends ChannelDuplexHandler {
 
-    private final LogProcessor logProcessor;
+    private final NettyLogProcessor logProcessor;
     private final LoggingProperties properties;
     private final AttributeKey<String> realIpKey;
 
@@ -31,7 +31,7 @@ public class NettyTraceDuplexHandler extends ChannelDuplexHandler {
 
     public NettyTraceDuplexHandler(LoggingProperties properties, AttributeKey<String> realIpKey) {
         this.properties = properties;
-        this.logProcessor = new LogProcessor(properties);
+        this.logProcessor = new NettyLogProcessor(properties);
         this.realIpKey = realIpKey;
     }
 
@@ -118,7 +118,7 @@ public class NettyTraceDuplexHandler extends ChannelDuplexHandler {
                    .sqlTotalElapsed(sqlCtx.getTotalElapsed());
         }
 
-        logProcessor.logNetty(builder.build());
+        logProcessor.logApi(builder.build());
     }
 
     private void clearContext(ChannelHandlerContext ctx) {

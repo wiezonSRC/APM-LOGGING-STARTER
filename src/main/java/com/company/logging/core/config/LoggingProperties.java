@@ -1,6 +1,6 @@
 package com.company.logging.core.config;
 
-import com.company.logging.core.trace.TraceLevel;
+import com.company.logging.core.enums.TraceLevel;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**

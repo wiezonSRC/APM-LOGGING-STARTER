@@ -1,4 +1,6 @@
-package com.company.logging.core.trace;
+package com.company.logging.core.context;
+
+import com.company.logging.core.enums.TraceLevel;
 
 /**
  * 현재 스레드의 추적 레벨(Trace Level)과 강제 추적 여부를 저장하는 컨텍스트 홀더입니다.
