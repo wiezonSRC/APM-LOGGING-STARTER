@@ -4,6 +4,7 @@ package com.company.logging.servlet.context;
 import com.company.logging.core.context.LogContext;
 
 public class LogApiContext implements LogContext {
+    private String traceId;
     private String interfaceId;
     private String uri;
     private String method;
@@ -118,10 +119,19 @@ public class LogApiContext implements LogContext {
         this.ex = ex;
     }
 
+    @Override
+    public String getTraceId() {
+        return traceId;
+    }
+
+    public void setTraceId(String traceId) {
+        this.traceId = traceId;
+    }
+
 
     public static class Builder{
 
-
+        private String traceId;
         private String interfaceId;
         private String uri;
         private String method;
@@ -134,11 +144,14 @@ public class LogApiContext implements LogContext {
         private boolean binaryResponse;
         private Exception exception;
 
+        public Builder traceId(String traceId){
+            this.traceId = traceId;
+            return this;
+        }
         public Builder interfaceId(String interfaceId) {
             this.interfaceId = interfaceId;
             return this;
         }
-
         public Builder uri(String uri) {
             this.uri = uri;
             return this;
@@ -183,6 +196,7 @@ public class LogApiContext implements LogContext {
         public LogApiContext build(){
             return new LogApiContext(this);
         }
+
 
     }
 }

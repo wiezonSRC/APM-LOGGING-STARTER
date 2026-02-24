@@ -3,6 +3,7 @@ package com.company.logging.batch.context;
 import com.company.logging.core.context.LogContext;
 
 public class LogBatchContext implements LogContext {
+    private String traceId;
     private String jobName;
     private String stepName;
     private String status;
@@ -10,6 +11,7 @@ public class LogBatchContext implements LogContext {
     private Exception ex;
 
     LogBatchContext(Builder builder) {
+        this.setTraceId(builder.traceId);
         this.setJobName(builder.jobName);
         this.setStepName(builder.stepName);
         this.setStatus(builder.status);
@@ -57,13 +59,27 @@ public class LogBatchContext implements LogContext {
         this.ex = ex;
     }
 
+    @Override
+    public String getTraceId() {
+        return traceId;
+    }
+
+    public void setTraceId(String traceId) {
+        this.traceId = traceId;
+    }
+
     public static class Builder {
+        private String traceId;
         private String jobName;
         private String stepName;
         private String status;
         private double elapsedMs;
         private Exception ex;
 
+        public Builder traceId(String traceId){
+            this.traceId = traceId;
+            return this;
+        }
         public Builder jobName(String jobName) {
             this.jobName = jobName;
             return this;

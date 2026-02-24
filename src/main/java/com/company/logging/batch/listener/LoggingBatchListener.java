@@ -31,12 +31,22 @@ public class LoggingBatchListener implements JobExecutionListener, StepExecution
 
     @Override
     public void beforeJob(@NonNull JobExecution jobExecution) {
-        initContext();
+        String traceId = UUID.randomUUID().toString();
+
+        // JobExecutionContext에 저장
+        jobExecution.getExecutionContext().put("traceId", traceId);
+
+        TraceContextHolder.init(properties.getTrace().getLevel(), false);
+        SqlTraceContextHolder.init();
+
     }
 
     @Override
     public void afterJob(JobExecution jobExecution) {
         try {
+            String traceId =
+                    jobExecution.getExecutionContext().getString("traceId");
+
             double elapsedMs = 0;
             if (jobExecution.getEndTime() != null && jobExecution.getStartTime() != null) {
                 elapsedMs = ChronoUnit.MILLIS.between(
@@ -53,6 +63,7 @@ public class LoggingBatchListener implements JobExecutionListener, StepExecution
             }
 
             LogBatchContext batchContext = new LogBatchContext.Builder()
+                    .traceId(traceId)
                     .jobName(jobExecution.getJobInstance().getJobName())
                     .stepName("JOB")
                     .status(jobExecution.getStatus().toString())
@@ -68,14 +79,21 @@ public class LoggingBatchListener implements JobExecutionListener, StepExecution
 
     @Override
     public void beforeStep(@NonNull StepExecution stepExecution) {
-        if (MDC.get("traceId") == null) {
-            initContext();
-        }
+        String traceId = stepExecution.getJobExecution()
+                            .getExecutionContext()
+                            .getString("traceId");
+
         SqlTraceContextHolder.init();
     }
 
     @Override
     public ExitStatus afterStep(StepExecution stepExecution) {
+
+        String traceId =
+                stepExecution.getJobExecution()
+                        .getExecutionContext()
+                        .getString("traceId");
+
         double elapsedMs = 0;
         if (stepExecution.getEndTime() != null && stepExecution.getStartTime() != null) {
             elapsedMs = ChronoUnit.MILLIS.between(
@@ -92,6 +110,7 @@ public class LoggingBatchListener implements JobExecutionListener, StepExecution
         }
 
         LogBatchContext batchContext = new LogBatchContext.Builder()
+                .traceId(traceId)
                 .jobName(stepExecution.getJobExecution().getJobInstance().getJobName())
                 .stepName(stepExecution.getStepName())
                 .status(stepExecution.getStatus().toString())
@@ -105,16 +124,9 @@ public class LoggingBatchListener implements JobExecutionListener, StepExecution
         return stepExecution.getExitStatus();
     }
 
-    private void initContext() {
-        String traceId = UUID.randomUUID().toString();
-        MDC.put("traceId", traceId);
-        TraceContextHolder.init(properties.getTrace().getLevel(), false);
-        SqlTraceContextHolder.init();
-    }
 
     private void clearContext() {
         SqlTraceContextHolder.clear();
         TraceContextHolder.clear();
-        MDC.clear();
     }
 }

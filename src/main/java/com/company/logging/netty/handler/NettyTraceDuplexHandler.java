@@ -40,12 +40,9 @@ public class NettyTraceDuplexHandler extends ChannelDuplexHandler {
         long startNano = System.nanoTime();
         String traceId = UUID.randomUUID().toString();
 
-        // 1. 컨텍스트 시작
-        MDC.put("traceId", traceId);
         TraceContextHolder.init(properties.getTrace().getLevel(), false);
         SqlTraceContextHolder.init();
 
-        // 2. 속성 저장 (동시성 안전을 위해 채널 속성 사용)
         ctx.channel().attr(START_NANO_KEY).set(startNano);
         ctx.channel().attr(TRACE_ID_KEY).set(traceId);
         ctx.channel().attr(REQUEST_DATA_KEY).set(safeToString(msg));
@@ -89,9 +86,6 @@ public class NettyTraceDuplexHandler extends ChannelDuplexHandler {
         String traceId = ctx.channel().attr(TRACE_ID_KEY).get();
         if (traceId == null) return;
 
-        // MDC 복구 (Netty EventLoop 스레드에서 실행될 때 유효)
-        MDC.put("traceId", traceId);
-
         Long startNano = ctx.channel().attr(START_NANO_KEY).get();
         double elapsedMs = (startNano != null) ? (System.nanoTime() - startNano) / 1_000_000.0 : 0;
 
@@ -104,6 +98,7 @@ public class NettyTraceDuplexHandler extends ChannelDuplexHandler {
         SqlTraceContext sqlCtx = ctx.channel().attr(SQL_CONTEXT_KEY).get();
 
         LogNettyContext.Builder builder = new LogNettyContext.Builder()
+                .traceId(traceId)
                 .interfaceId("NETTY_TCP")
                 .clientIp(clientIp)
                 .method("TCP")
@@ -131,7 +126,6 @@ public class NettyTraceDuplexHandler extends ChannelDuplexHandler {
         // 스레드 로컬 정리
         SqlTraceContextHolder.clear();
         TraceContextHolder.clear();
-        MDC.clear();
     }
 
     private String safeToString(Object msg) {

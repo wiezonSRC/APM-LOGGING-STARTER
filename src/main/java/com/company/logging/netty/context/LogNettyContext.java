@@ -3,6 +3,7 @@ package com.company.logging.netty.context;
 import com.company.logging.core.context.LogContext;
 
 public class LogNettyContext implements LogContext {
+    private String traceId;
     private String interfaceId;
     private String clientIp;
     private String method;
@@ -107,7 +108,17 @@ public class LogNettyContext implements LogContext {
         this.ex = ex;
     }
 
+    @Override
+    public String getTraceId() {
+        return traceId;
+    }
+
+    public void setTraceId(String traceId) {
+        this.traceId = traceId;
+    }
+
     public static class Builder {
+        private String traceId;
         private String interfaceId;
         private String clientIp;
         private String method;
@@ -119,6 +130,10 @@ public class LogNettyContext implements LogContext {
         private long sqlTotalElapsed;
         private Exception ex;
 
+        public Builder traceId(String traceId){
+            this.traceId = traceId;
+            return this;
+        }
         public Builder interfaceId(String interfaceId) {
             this.interfaceId = interfaceId;
             return this;
