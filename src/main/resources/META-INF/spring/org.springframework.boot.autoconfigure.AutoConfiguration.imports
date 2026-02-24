@@ -1,5 +1,5 @@
-com.company.logging.tool.servlet.config.LoggingWebAutoConfiguration
-com.company.logging.tool.servlet.config.LoggingMybatisAutoConfiguration
-com.company.logging.tool.batch.config.LoggingBatchAutoConfiguration
-com.company.logging.tool.netty.config.NettyLoggingAutoConfiguration
-com.company.logging.tool.core.config.LoggingCoreAutoConfiguration
+com.company.logging.servlet.config.LoggingWebAutoConfiguration
+com.company.logging.servlet.config.LoggingMybatisAutoConfiguration
+com.company.logging.batch.config.LoggingBatchAutoConfiguration
+com.company.logging.netty.config.NettyLoggingAutoConfiguration
+com.company.logging.core.config.LoggingCoreAutoConfiguration
