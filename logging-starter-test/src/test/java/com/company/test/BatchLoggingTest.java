@@ -39,12 +39,12 @@ class BatchLoggingTest {
 
         // 1. Job 로그 확인
         assertThat(output.getOut()).contains("[BATCH_PROD]");
-        assertThat(output.getOut()).contains("job=testJob");
-        assertThat(output.getOut()).contains("step=JOB");
+        assertThat(output.getOut()).contains("job_name=testJob");
+        assertThat(output.getOut()).contains("step_name=JOB");
 
         // 2. Step 로그 확인
-        assertThat(output.getOut()).contains("step=step1");
-        assertThat(output.getOut()).contains("step=step2");
+        assertThat(output.getOut()).contains("step_name=step1");
+        assertThat(output.getOut()).contains("step_name=step2");
 
         // 3. TraceId 공유 및 SpanId 분리 확인
         // 로그를 한줄씩 분석하는 것은 어렵지만, 동일한 trace_id 패턴이 여러번 등장하는지 확인
