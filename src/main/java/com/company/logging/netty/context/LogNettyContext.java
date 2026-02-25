@@ -4,6 +4,7 @@ import com.company.logging.core.context.LogContext;
 
 public class LogNettyContext implements LogContext {
     private final String traceId;
+    private final String spanId;
     private final String interfaceId;
     private final String clientIp;
     private final String method;
@@ -17,6 +18,7 @@ public class LogNettyContext implements LogContext {
 
     LogNettyContext(Builder builder) {
         this.traceId = builder.traceId;
+        this.spanId = builder.spanId;
         this.interfaceId = builder.interfaceId;
         this.clientIp = builder.clientIp;
         this.method = builder.method;
@@ -33,6 +35,12 @@ public class LogNettyContext implements LogContext {
     public String getTraceId() {
         return traceId;
     }
+
+    @Override
+    public String getSpanId() {
+        return spanId;
+    }
+
     public String getInterfaceId() {
         return interfaceId;
     }
@@ -68,6 +76,7 @@ public class LogNettyContext implements LogContext {
 
     public static class Builder {
         private String traceId;
+        private String spanId;
         private String interfaceId;
         private String clientIp;
         private String method;
@@ -83,6 +92,12 @@ public class LogNettyContext implements LogContext {
             this.traceId = traceId;
             return this;
         }
+
+        public Builder spanId(String spanId){
+            this.spanId = spanId;
+            return this;
+        }
+
         public Builder interfaceId(String interfaceId) {
             this.interfaceId = interfaceId;
             return this;

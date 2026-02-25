@@ -4,6 +4,7 @@ import com.company.logging.core.context.LogContext;
 
 public class LogBatchContext implements LogContext {
     private final String traceId;
+    private final String spanId;
     private final String jobName;
     private final String stepName;
     private final String status;
@@ -12,6 +13,7 @@ public class LogBatchContext implements LogContext {
 
     LogBatchContext(Builder builder) {
         this.traceId = builder.traceId;
+        this.spanId = builder.spanId;
         this.jobName = builder.jobName;
         this.stepName = builder.stepName;
         this.status = builder.status;
@@ -23,6 +25,12 @@ public class LogBatchContext implements LogContext {
     public String getTraceId() {
         return traceId;
     }
+
+    @Override
+    public String getSpanId() {
+        return spanId;
+    }
+
     public String getJobName() {
         return jobName;
     }
@@ -43,6 +51,7 @@ public class LogBatchContext implements LogContext {
 
     public static class Builder {
         private String traceId;
+        private String spanId;
         private String jobName;
         private String stepName;
         private String status;
@@ -53,6 +62,12 @@ public class LogBatchContext implements LogContext {
             this.traceId = traceId;
             return this;
         }
+
+        public Builder spanId(String spanId){
+            this.spanId = spanId;
+            return this;
+        }
+
         public Builder jobName(String jobName) {
             this.jobName = jobName;
             return this;

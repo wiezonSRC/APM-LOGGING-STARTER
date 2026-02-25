@@ -13,16 +13,18 @@ public class BatchLogProcessor extends AbstractLogProcessor<LogBatchContext> {
 
     @Override
     public void logApi(LogBatchContext ctx) {
-        String traceId = ctx.getTraceId(); // Batch는 MDC 의존하지 않는 게 더 좋음
+        String traceId = ctx.getTraceId(); 
+        String spanId = ctx.getSpanId();
         TraceLevel level = resolveLevel();
 
         boolean isError = ctx.getEx() != null;
 
         // 1. Batch 요약
         logger.info(
-                "[{}] trace_id={} job_name={} step_name={} status={} elapsed={}ms",
+                "[{}] trace_id={} span_id={} job_name={} step_name={} status={} elapsed={}ms",
                 LogMarker.BATCH_PROD,
                 traceId,
+                spanId,
                 ctx.getJobName(),
                 ctx.getStepName(),
                 ctx.getStatus(),
@@ -30,9 +32,9 @@ public class BatchLogProcessor extends AbstractLogProcessor<LogBatchContext> {
         );
 
         // 2. SQL
-        logSqlDetails(traceId, level, isError);
+        logSqlDetails(traceId, spanId, level, isError);
 
         // 3. Exception
-        logException(ctx, traceId);
+        logException(ctx, traceId, spanId);
     }
 }

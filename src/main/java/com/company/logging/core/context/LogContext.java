@@ -5,5 +5,6 @@ package com.company.logging.core.context;
  */
 public interface LogContext {
     String getTraceId();
+    String getSpanId();
     Exception getEx();
 }

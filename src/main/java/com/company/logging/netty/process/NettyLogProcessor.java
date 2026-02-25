@@ -13,20 +13,22 @@ public class NettyLogProcessor extends AbstractLogProcessor<LogNettyContext> {
 
     @Override
     public void logApi(LogNettyContext ctx) {
-        String traceId = ctx.getTraceId(); // MDC 안 쓰는 게 더 안전
+        String traceId = ctx.getTraceId(); 
+        String spanId = ctx.getSpanId();
         TraceLevel level = resolveLevel();
         boolean isError = ctx.getEx() != null;
 
         logger.info(
-                "[{}] trace_id={} client_ip={} status={} elapsed={}ms",
+                "[{}] trace_id={} span_id={} client_ip={} status={} elapsed={}ms",
                 LogMarker.NETTY_PROD,
                 traceId,
+                spanId,
                 ctx.getClientIp(),
                 ctx.getStatus(),
                 String.format("%.3f", ctx.getElapsedMs())
         );
 
-        logSqlDetails(traceId, level, isError);
-        logException(ctx, traceId);
+        logSqlDetails(traceId, spanId, level, isError);
+        logException(ctx, traceId, spanId);
     }
 }

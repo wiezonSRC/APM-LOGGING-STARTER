@@ -31,15 +31,17 @@ public class ServletLogProcessor extends AbstractLogProcessor<LogApiContext> {
     @Override
     public void logApi(LogApiContext ctx) {
         String traceId = ctx.getTraceId();
+        String spanId = ctx.getSpanId();
         TraceLevel level = resolveLevel();
 
         boolean isError = ctx.getEx() != null || hasErrorCode(ctx.getResponseBody());
 
         // 1. 기본 요약 로그 (PROD 레벨)
         logger.info(
-                "[{}] trace_id={} interface_id={} uri={} method={} status={} elapsed={}ms",
+                "[{}] trace_id={} span_id={} interface_id={} uri={} method={} status={} elapsed={}ms",
                 LogMarker.API_PROD,
                 traceId,
+                spanId,
                 ctx.getInterfaceId(),
                 ctx.getUri(),
                 ctx.getMethod(),
@@ -50,17 +52,18 @@ public class ServletLogProcessor extends AbstractLogProcessor<LogApiContext> {
         // 2. 상세 상세 로그 (DEBUG/TRACE 레벨이거나 에러일 때)
         if (level == TraceLevel.DEBUG || level == TraceLevel.TRACE || isError) {
             logger.info(
-                    "[{}] trace_id={} params={} request={} response={}",
+                    "[{}] trace_id={} span_id={} params={} request={} response={}",
                     LogMarker.API_DEBUG,
                     traceId,
+                    spanId,
                     ctx.getRequestParam(),
                     ctx.getRequestBody(),
                     ctx.getResponseBody()
             );
         }
 
-        logSqlDetails(traceId, level, isError);
-        logException(ctx, traceId);
+        logSqlDetails(traceId, spanId, level, isError);
+        logException(ctx, traceId, spanId);
     }
 
     public boolean hasErrorCode(String body) {

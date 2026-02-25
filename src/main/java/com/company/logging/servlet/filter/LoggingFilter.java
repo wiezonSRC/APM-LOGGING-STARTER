@@ -16,16 +16,12 @@ import org.slf4j.MDC;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.UUID;
+import com.company.logging.core.support.util.TraceIdUtil;
 
 import com.company.logging.servlet.context.LogApiContext;
 
 /**
  * HTTP 요청과 응답, 그리고 관련된 SQL 추적 정보를 로깅하는 필터입니다.
- * <p>
- * 요청/응답 본문을 읽기 위해 래핑(Wrapping)하고,
- * TraceContext 및 SqlTraceContext를 초기화/정리하며,
- * 설정된 TraceLevel에 따라 적절한 로그를 출력합니다.
  */
 public class LoggingFilter extends OncePerRequestFilter {
 
@@ -37,14 +33,6 @@ public class LoggingFilter extends OncePerRequestFilter {
         this.logProcessor = new ServletLogProcessor(properties);
     }
 
-    /**
-     * 필터의 핵심 로직을 수행합니다.
-     * TraceContext 초기화, 요청/응답 래핑, 필터 체인 실행, 그리고 최종 로깅을 담당합니다.
-     *
-     * @param request     현재 HTTP 요청
-     * @param response    현재 HTTP 응답
-     * @param filterChain 필터 체인
-     */
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     @NonNull HttpServletResponse response,
@@ -52,14 +40,25 @@ public class LoggingFilter extends OncePerRequestFilter {
 
         TraceLevel level = properties.getTrace().getLevel();
 
-        // Trace ID 생성 및 MDC 설정
-        String traceId = UUID.randomUUID().toString();
+        // Trace ID 및 Span ID 처리 (W3C traceparent 지원용 기반 마련)
+        String traceparent = request.getHeader("traceparent");
+        String traceId;
+        String spanId = TraceIdUtil.generateSpanId();
+
+        if (traceparent != null && traceparent.startsWith("00-") && traceparent.split("-").length >= 3) {
+            String[] parts = traceparent.split("-");
+            traceId = parts[1];
+        } else {
+            traceId = TraceIdUtil.generateTraceId();
+        }
+
         MDC.put("traceId", traceId);
+        MDC.put("spanId", spanId);
 
         // 헤더나 파라미터를 통한 강제 추적 여부 확인
         boolean forceTrace = "true".equalsIgnoreCase(request.getHeader("X-Debug-Trace")) || "true".equalsIgnoreCase(request.getParameter("trace"));
 
-        TraceContextHolder.init(level, forceTrace);
+        TraceContextHolder.init(traceId, spanId, level, forceTrace);
         SqlTraceContextHolder.init();
 
         boolean binaryRequest = isBinaryRequest(request);
@@ -93,6 +92,7 @@ public class LoggingFilter extends OncePerRequestFilter {
             SqlTraceContextHolder.clear();
             TraceContextHolder.clear();
             MDC.remove("traceId");
+            MDC.remove("spanId");
         }
     }
 
@@ -112,6 +112,7 @@ public class LoggingFilter extends OncePerRequestFilter {
 
         LogApiContext apiContext = new LogApiContext.Builder()
                 .traceId(MDC.get("traceId"))
+                .spanId(MDC.get("spanId"))
                 .interfaceId(interfaceId)
                 .uri(uri)
                 .method(method)

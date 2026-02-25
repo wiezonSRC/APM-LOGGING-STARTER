@@ -5,6 +5,7 @@ import com.company.logging.core.context.LogContext;
 
 public class LogApiContext implements LogContext {
     private final String traceId;
+    private final String spanId;
     private final String interfaceId;
     private final String uri;
     private final String method;
@@ -17,6 +18,7 @@ public class LogApiContext implements LogContext {
 
     LogApiContext(Builder builder) {
         this.traceId = builder.traceId;
+        this.spanId = builder.spanId;
         this.interfaceId = builder.interfaceId;
         this.uri = builder.uri;
         this.method =builder.method;
@@ -32,6 +34,12 @@ public class LogApiContext implements LogContext {
     public String getTraceId() {
         return traceId;
     }
+
+    @Override
+    public String getSpanId() {
+        return spanId;
+    }
+
     public String getInterfaceId() {
         return interfaceId;
     }
@@ -65,6 +73,7 @@ public class LogApiContext implements LogContext {
     public static class Builder{
 
         private String traceId;
+        private String spanId;
         private String interfaceId;
         private String uri;
         private String method;
@@ -77,6 +86,10 @@ public class LogApiContext implements LogContext {
 
         public Builder traceId(String traceId){
             this.traceId = traceId;
+            return this;
+        }
+        public Builder spanId(String spanId){
+            this.spanId = spanId;
             return this;
         }
         public Builder interfaceId(String interfaceId) {

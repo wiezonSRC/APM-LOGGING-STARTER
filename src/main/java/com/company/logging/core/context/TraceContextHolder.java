@@ -9,18 +9,38 @@ import com.company.logging.core.enums.TraceLevel;
  */
 public class TraceContextHolder {
 
+    private static final ThreadLocal<String> TRACE_ID = new ThreadLocal<>();
+    private static final ThreadLocal<String> SPAN_ID = new ThreadLocal<>();
     private static final ThreadLocal<TraceLevel> LEVEL = new ThreadLocal<>();
     private static final ThreadLocal<Boolean> FORCE_TRACE = new ThreadLocal<>();
 
     private TraceContextHolder() {}
     /**
      * 컨텍스트를 초기화합니다.
+     * @param traceId 추적 ID
+     * @param spanId 스팬 ID
      * @param level 추적 레벨
      * @param forceTrace 강제 추적 여부
      */
-    public static void init(TraceLevel level, boolean forceTrace){
+    public static void init(String traceId, String spanId, TraceLevel level, boolean forceTrace){
+        TRACE_ID.set(traceId);
+        SPAN_ID.set(spanId);
         LEVEL.set(level);
         FORCE_TRACE.set(forceTrace);
+    }
+
+    /**
+     * 현재 설정된 Trace ID를 반환합니다.
+     */
+    public static String traceId() {
+        return TRACE_ID.get();
+    }
+
+    /**
+     * 현재 설정된 Span ID를 반환합니다.
+     */
+    public static String spanId() {
+        return SPAN_ID.get();
     }
 
     /**
@@ -55,6 +75,8 @@ public class TraceContextHolder {
      * ThreadLocal에 저장된 컨텍스트 정보를 제거합니다.
      */
     public static void clear(){
+        TRACE_ID.remove();
+        SPAN_ID.remove();
         LEVEL.remove();
         FORCE_TRACE.remove();
     }

@@ -35,6 +35,7 @@ public abstract class AbstractLogProcessor<T extends LogContext> {
      * 공통 SQL 로깅
      */
     protected void logSqlDetails(String traceId,
+                                 String spanId,
                                  TraceLevel level,
                                  boolean isError) {
 
@@ -46,6 +47,7 @@ public abstract class AbstractLogProcessor<T extends LogContext> {
             logger.info(
                     LogMessageBuilder.buildTotalSlow(
                             traceId,
+                            spanId,
                             totalSqlElapsed,
                             totalSlowLimit
                     )
@@ -62,6 +64,7 @@ public abstract class AbstractLogProcessor<T extends LogContext> {
                         LogMessageBuilder.buildSql(
                                 LogMarker.SLOW_SQL,
                                 traceId,
+                                spanId,
                                 sql.getSqlId(),
                                 sql.getElapsed(),
                                 sql.getSql()
@@ -74,6 +77,7 @@ public abstract class AbstractLogProcessor<T extends LogContext> {
                         LogMessageBuilder.buildSql(
                                 LogMarker.SQL,
                                 traceId,
+                                spanId,
                                 sql.getSqlId(),
                                 sql.getElapsed(),
                                 sql.getSql()
@@ -86,6 +90,7 @@ public abstract class AbstractLogProcessor<T extends LogContext> {
                         LogMessageBuilder.buildSqlParam(
                                 LogMarker.SQL,
                                 traceId,
+                                spanId,
                                 sql.getSqlId(),
                                 sql.getElapsed(),
                                 sql.getSqlParam()
@@ -99,7 +104,7 @@ public abstract class AbstractLogProcessor<T extends LogContext> {
     /**
      * 공통 예외 로그
      */
-    protected void logException(LogContext ctx, String traceId) {
+    protected void logException(LogContext ctx, String traceId, String spanId) {
 
         if (ctx.getEx() == null) return;
 
@@ -107,6 +112,7 @@ public abstract class AbstractLogProcessor<T extends LogContext> {
                 LogMessageBuilder.buildException(
                         LogMarker.EXCEPTION,
                         traceId,
+                        spanId,
                         ctx.getEx()
                 ),
                 ctx.getEx()
