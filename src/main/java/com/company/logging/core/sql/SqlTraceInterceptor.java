@@ -2,6 +2,7 @@ package com.company.logging.core.sql;
 
 import com.company.logging.core.config.LoggingProperties;
 import com.company.logging.core.support.sql.SQLUtil;
+import org.apache.ibatis.executor.CachingExecutor;
 import org.apache.ibatis.executor.Executor;
 import org.apache.ibatis.mapping.BoundSql;
 import org.apache.ibatis.mapping.MappedStatement;
@@ -50,6 +51,10 @@ public class SqlTraceInterceptor implements Interceptor {
     public Object intercept(Invocation invocation) throws Throwable {
         long start = System.currentTimeMillis();
         boolean isError = false;
+
+        if (invocation.getTarget() instanceof CachingExecutor) {
+            return invocation.proceed();
+        }
 
         try{
             return invocation.proceed();
