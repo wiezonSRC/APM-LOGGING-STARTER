@@ -55,4 +55,31 @@ public class TestController {
     public String html() {
         return "<html><body><h1>Hello World</h1><script>console.log('hi');</script></body></html>";
     }
+
+    @GetMapping("/test-many-queries")
+    public String testManyQueries(@RequestParam(defaultValue = "110") int count) {
+        for (int i = 0; i < count; i++) {
+            testMapper.selectOne();
+        }
+        return "Executed " + count + " queries";
+    }
+
+    @GetMapping("/test-error-with-limit")
+    public String testErrorWithLimit(@RequestParam(defaultValue = "105") int count) {
+        for (int i = 0; i < count; i++) {
+            testMapper.selectOne();
+        }
+        try {
+            testMapper.selectError();
+        } catch (Exception e) {
+            // Ignore to let the filter finish normally
+        }
+        return "Executed " + count + " queries and one error query";
+    }
+
+    @GetMapping("/test-truncate")
+    public String testTruncate() {
+        testMapper.selectLongText();
+        return "Truncate test";
+    }
 }

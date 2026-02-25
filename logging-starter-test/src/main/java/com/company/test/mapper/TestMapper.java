@@ -11,4 +11,10 @@ public interface TestMapper {
 
     @Select("SELECT #{value} as val")
     String selectWithParam(@Param("value") String value);
+
+    @Select("SELECT 'Long text to test truncation' as val")
+    String selectLongText();
+
+    @Select("SELECT * FROM NON_EXISTENT_TABLE")
+    void selectError();
 }
