@@ -1,4 +1,4 @@
-package com.company.logging.servlet.config;
+package com.company.logging.core.config;
 import com.company.logging.core.sql.SqlTraceInterceptor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -19,12 +19,6 @@ import org.mybatis.spring.boot.autoconfigure.ConfigurationCustomizer;
                 "org.apache.ibatis.session.Configuration",
                 "org.mybatis.spring.boot.autoconfigure.MybatisAutoConfiguration"
         }
-)
-@ConditionalOnProperty(
-        prefix = "log.trace",
-        name = "sql-enabled",
-        havingValue = "true",
-        matchIfMissing = true
 )
 public class LoggingMybatisAutoConfiguration {
 

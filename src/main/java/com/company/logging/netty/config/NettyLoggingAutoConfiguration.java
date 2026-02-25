@@ -1,7 +1,12 @@
 package com.company.logging.netty.config;
 
+import com.company.logging.core.config.LoggingProperties;
+import com.company.logging.netty.handler.NettyTraceDuplexHandler;
 import io.netty.channel.ChannelHandler;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
@@ -10,6 +15,17 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 @ConditionalOnClass(ChannelHandler.class)
+@ConditionalOnProperty(
+        prefix = "log",
+        name = "enabled",
+        havingValue = "true",
+        matchIfMissing = true
+)
 public class NettyLoggingAutoConfiguration {
-    // 필요한 경우 공통 설정을 여기에 추가할 수 있습니다.
+
+    @Bean
+    @ConditionalOnMissingBean
+    public NettyTraceDuplexHandler nettyTraceDuplexHandler(LoggingProperties properties){
+        return new NettyTraceDuplexHandler(properties);
+    }
 }

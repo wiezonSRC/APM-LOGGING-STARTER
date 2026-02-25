@@ -2,6 +2,7 @@ package com.company.logging.servlet.config;
 
 import com.company.logging.core.config.LoggingProperties;
 import com.company.logging.servlet.filter.LoggingFilter;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -15,16 +16,16 @@ import org.springframework.core.Ordered;
  */
 @Configuration
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
-@EnableConfigurationProperties(LoggingProperties.class)
+@ConditionalOnProperty(
+        prefix = "log",
+        name = "enabled",
+        havingValue = "true",
+        matchIfMissing = true
+)
 public class LoggingWebAutoConfiguration {
 
     @Bean
-    @ConditionalOnProperty(
-            prefix = "log.trace",
-            name = "enabled",
-            havingValue = "true",
-            matchIfMissing = true
-    )
+    @ConditionalOnMissingBean
     public FilterRegistrationBean<LoggingFilter> loggingFilterRegistration(
             LoggingProperties properties
     ) {

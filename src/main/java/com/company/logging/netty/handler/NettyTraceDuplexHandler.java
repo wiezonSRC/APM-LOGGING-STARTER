@@ -22,17 +22,16 @@ public class NettyTraceDuplexHandler extends ChannelDuplexHandler {
 
     private final NettyLogProcessor logProcessor;
     private final LoggingProperties properties;
-    private final AttributeKey<String> realIpKey;
 
+    private static final AttributeKey<String> REAL_IP_KEY = AttributeKey.valueOf("REAL_IP");
     private static final AttributeKey<Long> START_NANO_KEY = AttributeKey.valueOf("START_NANO");
     private static final AttributeKey<String> TRACE_ID_KEY = AttributeKey.valueOf("TRACE_ID");
     private static final AttributeKey<String> REQUEST_DATA_KEY = AttributeKey.valueOf("REQUEST_DATA");
     private static final AttributeKey<SqlTraceContext> SQL_CONTEXT_KEY = AttributeKey.valueOf("SQL_CONTEXT");
 
-    public NettyTraceDuplexHandler(LoggingProperties properties, AttributeKey<String> realIpKey) {
+    public NettyTraceDuplexHandler(LoggingProperties properties) {
         this.properties = properties;
         this.logProcessor = new NettyLogProcessor(properties);
-        this.realIpKey = realIpKey;
     }
 
     @Override
@@ -89,7 +88,7 @@ public class NettyTraceDuplexHandler extends ChannelDuplexHandler {
         Long startNano = ctx.channel().attr(START_NANO_KEY).get();
         double elapsedMs = (startNano != null) ? (System.nanoTime() - startNano) / 1_000_000.0 : 0;
 
-        String clientIp = ctx.channel().attr(realIpKey).get();
+        String clientIp = ctx.channel().attr(REAL_IP_KEY).get();
         if (clientIp == null) {
             clientIp = ctx.channel().remoteAddress().toString();
         }
