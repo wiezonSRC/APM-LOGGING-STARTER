@@ -44,10 +44,16 @@ public class TestNettyServerConfig {
                         ch.pipeline().addLast(new StringDecoder());
                         ch.pipeline().addLast(new StringEncoder());
                         ch.pipeline().addLast(nettyTraceDuplexHandler);
-                        ch.pipeline().addLast(new io.netty.channel.SimpleChannelInboundHandler<String>() {
+                        ch.pipeline().addLast(new io.netty.channel.ChannelInboundHandlerAdapter() {
+                            private StringBuilder accum = new StringBuilder();
                             @Override
-                            protected void channelRead0(io.netty.channel.ChannelHandlerContext ctx, String msg) {
-                                ctx.writeAndFlush("Echo: " + msg);
+                            public void channelRead(io.netty.channel.ChannelHandlerContext ctx, Object msg) {
+                                String s = (String) msg;
+                                accum.append(s);
+                                if (s.contains("\n")) {
+                                    ctx.writeAndFlush("Echo: " + accum.toString().trim());
+                                    accum.setLength(0);
+                                }
                             }
                         });
                     }
