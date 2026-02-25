@@ -8,6 +8,7 @@ import com.company.logging.core.enums.LogMarker;
 import com.company.logging.core.enums.TraceLevel;
 import com.company.logging.core.sql.SqlTraceContextHolder;
 import com.company.logging.core.support.sql.SQLUtil;
+import com.company.logging.core.support.util.CommonUtil;
 import com.company.logging.core.support.util.LogMessageBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -112,7 +113,7 @@ public abstract class AbstractLogProcessor<T extends LogContext> {
                                 spanId,
                                 sql.getSqlId(),
                                 sql.getElapsed(),
-                                SQLUtil.truncate(sql.getSql(), 200)
+                                CommonUtil.truncate(sql.getSql(), 200)
                         )
                 );
             }

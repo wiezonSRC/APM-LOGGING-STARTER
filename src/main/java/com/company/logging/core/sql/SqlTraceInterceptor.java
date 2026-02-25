@@ -2,6 +2,7 @@ package com.company.logging.core.sql;
 
 import com.company.logging.core.config.LoggingProperties;
 import com.company.logging.core.support.sql.SQLUtil;
+import com.company.logging.core.support.util.CommonUtil;
 import org.apache.ibatis.executor.CachingExecutor;
 import org.apache.ibatis.executor.Executor;
 import org.apache.ibatis.mapping.BoundSql;
@@ -89,11 +90,11 @@ public class SqlTraceInterceptor implements Interceptor {
                 } else {
                     sql = SQLUtil.buildSql(ms, param);
                     // SQL 길이 제한 적용
-                    sql = SQLUtil.truncate(sql, properties.getLimit().getMaxSqlLength());
+                    sql = CommonUtil.truncate(sql, properties.getLimit().getMaxSqlLength());
                     
                     String sqlParam = extractSqlParam(ms, param);
                     // 파라미터 길이 제한 적용
-                    sqlParam = SQLUtil.truncate(sqlParam, properties.getLimit().getMaxSqlParamLength());
+                    sqlParam = CommonUtil.truncate(sqlParam, properties.getLimit().getMaxSqlParamLength());
 
                     ctx.add(sqlId, sql, sqlParam, elapsed, isError);
                 }

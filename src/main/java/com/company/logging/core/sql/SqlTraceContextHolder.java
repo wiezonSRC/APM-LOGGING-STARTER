@@ -11,10 +11,19 @@ public class SqlTraceContextHolder {
     private static final ThreadLocal<SqlTraceContext> contextThreadLocal = new ThreadLocal<>();
     private SqlTraceContextHolder() {}
     /**
-     * 컨텍스트를 초기화합니다. 요청 시작 시 호출되어야 합니다.
+     * 컨텍스트를 초기화하고 반환합니다. 요청 시작 시 호출되어야 합니다.
      */
-    public static void init(){
-        contextThreadLocal.set(new SqlTraceContext());
+    public static SqlTraceContext init(){
+        SqlTraceContext ctx = new SqlTraceContext();
+        contextThreadLocal.set(ctx);
+        return ctx;
+    }
+
+    /**
+     * 컨텍스트를 명시적으로 설정합니다.
+     */
+    public static void set(SqlTraceContext ctx) {
+        contextThreadLocal.set(ctx);
     }
 
     /**

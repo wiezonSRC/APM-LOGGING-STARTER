@@ -19,12 +19,14 @@ public class NettyLogProcessor extends AbstractLogProcessor<LogNettyContext> {
         boolean isError = ctx.getEx() != null;
 
         logger.info(
-                "[{}] trace_id={} span_id={} client_ip={} status={} elapsed={}ms",
+                "[{}] trace_id={} span_id={} client_ip={} status={} request={} response={} elapsed={}ms",
                 LogMarker.NETTY_PROD,
                 traceId,
                 spanId,
                 ctx.getClientIp(),
                 ctx.getStatus(),
+                ctx.getRequestData(),
+                ctx.getResponseData(),
                 String.format("%.3f", ctx.getElapsedMs())
         );
 

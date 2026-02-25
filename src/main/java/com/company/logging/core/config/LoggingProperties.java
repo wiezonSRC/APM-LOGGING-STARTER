@@ -37,6 +37,7 @@ public class LoggingProperties {
         private int maxSqlCount = 100;
         private int maxSqlLength = 2000;
         private int maxSqlParamLength = 1000;
+        private int maxBodyLength = 1000;
 
         public int getMaxSqlCount() {
             return maxSqlCount;
@@ -60,6 +61,14 @@ public class LoggingProperties {
 
         public void setMaxSqlParamLength(int maxSqlParamLength) {
             this.maxSqlParamLength = maxSqlParamLength;
+        }
+
+        public int getMaxBodyLength() {
+            return maxBodyLength;
+        }
+
+        public void setMaxBodyLength(int maxBodyLength) {
+            this.maxBodyLength = maxBodyLength;
         }
     }
 

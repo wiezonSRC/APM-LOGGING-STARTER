@@ -1,12 +1,15 @@
 package com.company.logging.netty.handler;
 
+import com.company.logging.core.support.util.CommonUtil;
 import com.company.logging.netty.context.LogNettyContext;
 import com.company.logging.core.config.LoggingProperties;
 import com.company.logging.core.sql.SqlTraceContext;
 import com.company.logging.core.sql.SqlTraceContextHolder;
 import com.company.logging.core.context.TraceContextHolder;
 import com.company.logging.netty.process.NettyLogProcessor;
+import com.company.logging.core.support.sql.SQLUtil;
 import io.netty.channel.ChannelDuplexHandler;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.util.AttributeKey;
@@ -16,6 +19,7 @@ import com.company.logging.core.support.util.TraceIdUtil;
 /**
  * Netty TCP 환경에서 요청/응답 객체 및 SQL 실행 정보를 통합 로깅하는 듀플렉스 핸들러입니다.
  */
+@ChannelHandler.Sharable
 public class NettyTraceDuplexHandler extends ChannelDuplexHandler {
 
     private final NettyLogProcessor logProcessor;
@@ -26,6 +30,7 @@ public class NettyTraceDuplexHandler extends ChannelDuplexHandler {
     private static final AttributeKey<String> TRACE_ID_KEY = AttributeKey.valueOf("TRACE_ID");
     private static final AttributeKey<String> SPAN_ID_KEY = AttributeKey.valueOf("SPAN_ID");
     private static final AttributeKey<String> REQUEST_DATA_KEY = AttributeKey.valueOf("REQUEST_DATA");
+    private static final AttributeKey<String> RESPONSE_DATA_KEY = AttributeKey.valueOf("RESPONSE_DATA");
     private static final AttributeKey<SqlTraceContext> SQL_CONTEXT_KEY = AttributeKey.valueOf("SQL_CONTEXT");
 
     public NettyTraceDuplexHandler(LoggingProperties properties) {
@@ -35,32 +40,51 @@ public class NettyTraceDuplexHandler extends ChannelDuplexHandler {
 
     @Override
     public void channelRead(@NonNull ChannelHandlerContext ctx,@NonNull Object msg) throws Exception {
-        long startNano = System.nanoTime();
-        String traceId = TraceIdUtil.generateTraceId();
-        String spanId = TraceIdUtil.generateSpanId();
+        String traceId = ctx.channel().attr(TRACE_ID_KEY).get();
+        String spanId = ctx.channel().attr(SPAN_ID_KEY).get();
 
+        if (traceId == null) {
+            traceId = TraceIdUtil.generateTraceId();
+            spanId = TraceIdUtil.generateSpanId();
+            ctx.channel().attr(TRACE_ID_KEY).set(traceId);
+            ctx.channel().attr(SPAN_ID_KEY).set(spanId);
+            ctx.channel().attr(START_NANO_KEY).set(System.nanoTime());
+            ctx.channel().attr(REQUEST_DATA_KEY).set("");
+            ctx.channel().attr(RESPONSE_DATA_KEY).set("");
+            
+            SqlTraceContext sqlCtx = SqlTraceContextHolder.init();
+            ctx.channel().attr(SQL_CONTEXT_KEY).set(sqlCtx);
+        }
+
+        // 각 Chunk 처리 시 ThreadLocal 복구
         TraceContextHolder.init(traceId, spanId, properties.getTrace().getLevel(), false);
-        SqlTraceContextHolder.init();
+        SqlTraceContextHolder.set(ctx.channel().attr(SQL_CONTEXT_KEY).get());
 
-        ctx.channel().attr(START_NANO_KEY).set(startNano);
-        ctx.channel().attr(TRACE_ID_KEY).set(traceId);
-        ctx.channel().attr(SPAN_ID_KEY).set(spanId);
-        ctx.channel().attr(REQUEST_DATA_KEY).set(safeToString(msg));
-        ctx.channel().attr(SQL_CONTEXT_KEY).set(SqlTraceContextHolder.get());
+        // Request 데이터 누적 및 Truncate
+        String currentReq = ctx.channel().attr(REQUEST_DATA_KEY).get();
+        ctx.channel().attr(REQUEST_DATA_KEY).set(accumulate(currentReq, safeToString(msg)));
 
         super.channelRead(ctx, msg);
     }
 
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-        String responseData = safeToString(msg);
+        String data = safeToString(msg);
+        String currentRes = ctx.channel().attr(RESPONSE_DATA_KEY).get();
+        String accumulatedRes = accumulate(currentRes, data);
+        ctx.channel().attr(RESPONSE_DATA_KEY).set(accumulatedRes);
 
-        // write 완료 후 로깅 수행 (Chunked write 및 성공 여부 확인을 위해 Listener 사용)
+        // write 완료 후 로깅 수행
         promise.addListener(future -> {
             try {
-                if (future.isSuccess()) logNetty(ctx, responseData, null);
-                else logNetty(ctx, responseData, future.cause() instanceof Exception e ? e : new RuntimeException(future.cause()));
+                if (future.isSuccess()) {
+                    logNetty(ctx, null);
+                } else {
+                    logNetty(ctx, future.cause() instanceof Exception e ? e : new RuntimeException(future.cause()));
+                }
             } finally {
+                // 한 번의 write가 전체 응답 완료라고 가정하기 어려울 수 있으나, 
+                // 일반적인 경우 writeListener에서 정리
                 clearContext(ctx);
             }
         });
@@ -69,20 +93,15 @@ public class NettyTraceDuplexHandler extends ChannelDuplexHandler {
     }
 
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        Exception ex;
-        if (cause instanceof Exception exception) ex = exception;
-        else ex = new RuntimeException(cause);
-
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         try {
-            logNetty(ctx, null, ex);
-        } finally {
             clearContext(ctx);
+        } finally {
+            super.channelInactive(ctx);
         }
-        super.exceptionCaught(ctx, cause);
     }
 
-    private void logNetty(ChannelHandlerContext ctx, String resData, Exception ex) {
+    private void logNetty(ChannelHandlerContext ctx, Exception ex) {
         String traceId = ctx.channel().attr(TRACE_ID_KEY).get();
         String spanId = ctx.channel().attr(SPAN_ID_KEY).get();
         if (traceId == null) return;
@@ -96,6 +115,7 @@ public class NettyTraceDuplexHandler extends ChannelDuplexHandler {
         }
 
         String reqData = ctx.channel().attr(REQUEST_DATA_KEY).get();
+        String resData = ctx.channel().attr(RESPONSE_DATA_KEY).get();
         SqlTraceContext sqlCtx = ctx.channel().attr(SQL_CONTEXT_KEY).get();
 
         LogNettyContext.Builder builder = new LogNettyContext.Builder()
@@ -119,24 +139,38 @@ public class NettyTraceDuplexHandler extends ChannelDuplexHandler {
     }
 
     private void clearContext(ChannelHandlerContext ctx) {
-        // 채널 속성 정리
         ctx.channel().attr(START_NANO_KEY).set(null);
         ctx.channel().attr(TRACE_ID_KEY).set(null);
         ctx.channel().attr(SPAN_ID_KEY).set(null);
         ctx.channel().attr(REQUEST_DATA_KEY).set(null);
+        ctx.channel().attr(RESPONSE_DATA_KEY).set(null);
         ctx.channel().attr(SQL_CONTEXT_KEY).set(null);
 
-        // 스레드 로컬 정리
         SqlTraceContextHolder.clear();
         TraceContextHolder.clear();
+    }
+
+    private String accumulate(String current, String addition) {
+        if (addition == null || addition.isEmpty()) return current;
+        if (current == null) current = "";
+        
+        int max = properties.getLimit().getMaxBodyLength();
+        if (current.length() >= max) return current;
+
+        return CommonUtil.truncate(current + addition, max);
     }
 
     private String safeToString(Object msg) {
         if (msg == null) return "";
         if (msg instanceof String s) return s;
         if (msg instanceof io.netty.buffer.ByteBuf buf) {
-            // ByteBuf의 내용을 읽되, 포인터는 유지
-            return buf.toString(java.nio.charset.StandardCharsets.UTF_8);
+            int max = properties.getLimit().getMaxBodyLength();
+            int readableBytes = buf.readableBytes();
+            if (readableBytes == 0) return "";
+            
+            int lengthToRead = Math.min(readableBytes, max);
+            String result = buf.toString(buf.readerIndex(), lengthToRead, java.nio.charset.StandardCharsets.UTF_8);
+            return readableBytes > max ? result + "...(TRUNCATED)" : result;
         }
         return msg.toString();
     }
