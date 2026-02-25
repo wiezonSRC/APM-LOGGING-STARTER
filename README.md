@@ -51,6 +51,17 @@ log.trace.level=PROD
 log.slow.query.ms=300
 # 한 API 내 전체 SQL 합계 기준 (ms)
 log.slow.query.total-ms=1000
+
+# ==========================
+# SQL Limit
+# ==========================
+
+# 한 요청당 수집할 최대 SQL 개수 (기본값: 100)
+log.limit.max-sql-count=100
+# 수집할 SQL 문장의 최대 길이 (기본값: 2000)
+log.limit.max-sql-length=2000
+# 수집할 SQL 파라미터의 최대 길이 (기본값: 1000)
+log.limit.max-sql-param-length=1000
 ```
 
 ### 2. 환경별 적용 방법
