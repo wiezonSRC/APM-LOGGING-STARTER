@@ -50,15 +50,29 @@ public class ServletLogProcessor extends AbstractLogProcessor<LogApiContext> {
         );
 
         // 2. 상세 상세 로그 (DEBUG/TRACE 레벨이거나 에러일 때)
-        if (level == TraceLevel.DEBUG || level == TraceLevel.TRACE || isError) {
+        if (level == TraceLevel.DEBUG || level == TraceLevel.TRACE) {
             logger.info(
                     "[{}] trace_id={} span_id={} params={} request={} response={}",
-                    LogMarker.API_DEBUG,
+                    LogMarker.API_TRACE,
                     traceId,
                     spanId,
                     ctx.getRequestParam(),
                     ctx.getRequestBody(),
                     ctx.getResponseBody()
+            );
+        }
+
+        // 3. 에러로그
+        if (isError){
+            logger.info(
+                    "[{}] trace_id={} span_id={} params={} request={} response={}",
+                    LogMarker.EXCEPTION,
+                    traceId,
+                    spanId,
+                    ctx.getRequestParam(),
+                    ctx.getRequestBody(),
+                    ctx.getResponseBody(),
+                    ctx.getEx()
             );
         }
 

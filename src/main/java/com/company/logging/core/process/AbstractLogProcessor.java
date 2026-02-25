@@ -7,6 +7,7 @@ import com.company.logging.core.context.TraceContextHolder;
 import com.company.logging.core.enums.LogMarker;
 import com.company.logging.core.enums.TraceLevel;
 import com.company.logging.core.sql.SqlTraceContextHolder;
+import com.company.logging.core.support.sql.SQLUtil;
 import com.company.logging.core.support.util.LogMessageBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +39,10 @@ public abstract class AbstractLogProcessor<T extends LogContext> {
                                  String spanId,
                                  TraceLevel level,
                                  boolean isError) {
+
+        if (!logger.isInfoEnabled()) {
+            return;
+        }
 
         long totalSqlElapsed = SqlTraceContextHolder.totalElapsed();
         int totalSlowLimit = properties.getSlow().getQuery().getTotalMs();
@@ -98,6 +103,18 @@ public abstract class AbstractLogProcessor<T extends LogContext> {
                                 sql.getSqlParam()
                         )
                 );
+            } else if(level == TraceLevel.PROD){
+
+                logger.info(
+                        LogMessageBuilder.buildSql(
+                                LogMarker.SQL,
+                                traceId,
+                                spanId,
+                                sql.getSqlId(),
+                                sql.getElapsed(),
+                                SQLUtil.truncate(sql.getSql(), 200)
+                        )
+                );
             }
         }
 
@@ -113,6 +130,7 @@ public abstract class AbstractLogProcessor<T extends LogContext> {
      */
     protected void logException(LogContext ctx, String traceId, String spanId) {
 
+        if (!logger.isInfoEnabled()) return;
         if (ctx.getEx() == null) return;
 
         logger.error(
