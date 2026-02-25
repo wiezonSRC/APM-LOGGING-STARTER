@@ -12,6 +12,7 @@ public class SqlTraceContext {
 
     private final List<LogSqlContext> traces = new ArrayList<>();
     private long totalElapsed = 0;
+    private int omittedCount = 0;
 
     /**
      * 실행된 SQL 정보를 추가합니다.
@@ -19,15 +20,44 @@ public class SqlTraceContext {
      * @param sql 실행된 SQL
      * @param sqlParam SQL 파라미터
      * @param elapsed 소요 시간(ms)
+     * @param isError 에러 발생 여부
      */
-    public void add(String sqlId, String sql, String sqlParam, long elapsed){
+    public void add(String sqlId, String sql, String sqlParam, long elapsed, boolean isError){
         traces.add(new LogSqlContext.Builder()
                 .sqlId(sqlId)
                 .sql(sql)
                 .sqlParam(sqlParam)
                 .elapsed(elapsed)
+                .isError(isError)
                 .build());
         totalElapsed += elapsed;
+    }
+
+    /**
+     * 에러 쿼리를 위해 공간을 확보하기 위해 가장 오래된 정상 쿼리를 제거합니다.
+     */
+    public void removeOldestNormal() {
+        for (int i = 0; i < traces.size(); i++) {
+            if (!traces.get(i).isError()) {
+                traces.remove(i);
+                return;
+            }
+        }
+        // 모든 쿼리가 에러 쿼리라면 가장 오래된 것 제거
+        if (!traces.isEmpty()) {
+            traces.remove(0);
+        }
+    }
+
+    /**
+     * SQL 로깅이 생략되었음을 기록합니다.
+     */
+    public void addOmitted() {
+        this.omittedCount++;
+    }
+
+    public int getOmittedCount() {
+        return omittedCount;
     }
 
     public List<LogSqlContext> getTraces(){
@@ -40,5 +70,9 @@ public class SqlTraceContext {
 
     public int count(){
         return traces.size();
+    }
+
+    public boolean isFull(int maxCount) {
+        return traces.size() >= maxCount;
     }
 }

@@ -35,6 +35,19 @@ public class SQLUtil {
     }
 
     /**
+     * 값을 SQL 리터럴 형식으로 변환합니다. (예: 문자열은 따옴표로 감쌈)
+     */
+    /**
+     * 문자열이 지정된 길이를 초과할 경우 자르고 접미사를 붙입니다.
+     */
+    public static String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength) + "...(TRUNCATED)";
+    }
+
+    /**
      * SQL 문자열 내의 '?'를 순차적으로 파라미터 값으로 치환합니다.
      * 문자열 리터럴이나 주석 내의 '?'는 무시합니다.
      */
@@ -97,8 +110,8 @@ public class SQLUtil {
     private static String formatValue(Object value) {
         if(value == null) return "NULL";
 
-        if(value instanceof String){
-            return "'" + ((String) value).replace("'", "''") + "'";
+        if(value instanceof String val){
+            return "'" + val.replace("'", "''") + "'";
         }
 
         if(value instanceof LocalDateTime){
@@ -111,6 +124,5 @@ public class SQLUtil {
 
         return "'" + value + "'";
     }
-
 
 }

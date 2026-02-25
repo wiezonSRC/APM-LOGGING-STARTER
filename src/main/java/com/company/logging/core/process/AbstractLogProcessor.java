@@ -57,6 +57,8 @@ public abstract class AbstractLogProcessor<T extends LogContext> {
         for (LogSqlContext sql : SqlTraceContextHolder.getAll()) {
 
             boolean isSlow = sql.getElapsed() >= slowQueryLimit;
+            // 해당 SQL 자체가 에러를 유발했거나 전체 API가 에러인 경우 상세 로깅
+            boolean shouldLogFull = sql.isError() || level == TraceLevel.TRACE || isError;
 
             if (isSlow) {
 
@@ -71,7 +73,7 @@ public abstract class AbstractLogProcessor<T extends LogContext> {
                         )
                 );
 
-            } else if (level == TraceLevel.TRACE || isError) {
+            } else if (shouldLogFull) {
 
                 logger.info(
                         LogMessageBuilder.buildSql(
@@ -97,6 +99,11 @@ public abstract class AbstractLogProcessor<T extends LogContext> {
                         )
                 );
             }
+        }
+
+        int omittedCount = SqlTraceContextHolder.get() != null ? SqlTraceContextHolder.get().getOmittedCount() : 0;
+        if (omittedCount > 0) {
+            logger.warn(LogMessageBuilder.buildSqlOmitted(traceId, spanId, omittedCount));
         }
     }
 

@@ -27,12 +27,13 @@ public class LoggingMybatisAutoConfiguration {
      * SqlTraceInterceptor 빈을 생성합니다.
      * 이 인터셉터는 SQL 실행 시간을 측정하고 실행된 SQL과 파라미터를 캡처하는 역할을 합니다.
      *
+     * @param properties 로깅 설정 속성
      * @return SqlTraceInterceptor 인스턴스
      */
     @Bean
     @ConditionalOnMissingBean
-    public SqlTraceInterceptor sqlTraceInterceptor() {
-        return new SqlTraceInterceptor();
+    public SqlTraceInterceptor sqlTraceInterceptor(LoggingProperties properties) {
+        return new SqlTraceInterceptor(properties);
     }
 
     /**

@@ -73,6 +73,19 @@ public class LogMessageBuilder {
         );
     }
 
+    // 5. SQL 생략 로그
+    public static String buildSqlOmitted(String traceId,
+                                         String spanId,
+                                         int omittedCount) {
+
+        return String.format(
+                "[SQL] (OMITTED) trace_id=%s span_id=%s message=\"Too many SQLs in one request. %d queries omitted.\"",
+                traceId,
+                spanId,
+                omittedCount
+        );
+    }
+
     // SQL 정리
     private static String prettySql(String sql) {
         if (sql == null) return "";

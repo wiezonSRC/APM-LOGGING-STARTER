@@ -1,5 +1,6 @@
 package com.company.logging.core.sql;
 
+import com.company.logging.core.config.LoggingProperties;
 import com.company.logging.core.support.sql.SQLUtil;
 import org.apache.ibatis.executor.Executor;
 import org.apache.ibatis.mapping.BoundSql;
@@ -38,13 +39,24 @@ import java.util.List;
         )
 })
 public class SqlTraceInterceptor implements Interceptor {
+
+    private final LoggingProperties properties;
+
+    public SqlTraceInterceptor(LoggingProperties properties) {
+        this.properties = properties;
+    }
+
     @Override
     public Object intercept(Invocation invocation) throws Throwable {
         long start = System.currentTimeMillis();
+        boolean isError = false;
 
         try{
             return invocation.proceed();
-        }finally{
+        } catch (Throwable t) {
+            isError = true;
+            throw t;
+        } finally {
 
             long elapsed = System.currentTimeMillis() - start;
 
@@ -58,11 +70,28 @@ public class SqlTraceInterceptor implements Interceptor {
             SqlTraceContext ctx = SqlTraceContextHolder.get();
 
             if(ctx != null){
-                sql = SQLUtil.buildSql(ms, param);
-            }
+                int maxCount = properties.getLimit().getMaxSqlCount();
+                boolean isFull = ctx.isFull(maxCount);
 
-            if(ctx != null){
-                ctx.add(sqlId, sql, extractSqlParam(ms, param),elapsed);
+                // 에러 발생 시에는 꽉 찼더라도 공간을 만들어서 저장함
+                if (isFull && isError) {
+                    ctx.removeOldestNormal();
+                    isFull = false;
+                }
+
+                if (isFull) {
+                    ctx.addOmitted();
+                } else {
+                    sql = SQLUtil.buildSql(ms, param);
+                    // SQL 길이 제한 적용
+                    sql = SQLUtil.truncate(sql, properties.getLimit().getMaxSqlLength());
+                    
+                    String sqlParam = extractSqlParam(ms, param);
+                    // 파라미터 길이 제한 적용
+                    sqlParam = SQLUtil.truncate(sqlParam, properties.getLimit().getMaxSqlParamLength());
+
+                    ctx.add(sqlId, sql, sqlParam, elapsed, isError);
+                }
             }
         }
 

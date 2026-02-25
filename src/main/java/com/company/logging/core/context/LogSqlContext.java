@@ -5,12 +5,22 @@ public class LogSqlContext {
     private String sql;
     private String sqlParam;
     private long elapsed;
+    private boolean isError;
 
     LogSqlContext(Builder builder) {
         this.setSqlId(builder.sqlId);
         this.setSql(builder.sql);
         this.setSqlParam(builder.sqlParam);
         this.setElapsed(builder.elapsed);
+        this.setError(builder.isError);
+    }
+
+    public boolean isError() {
+        return isError;
+    }
+
+    public void setError(boolean error) {
+        isError = error;
     }
 
     public String getSqlId() {
@@ -50,6 +60,7 @@ public class LogSqlContext {
         private String sql;
         private String sqlParam;
         private long elapsed;
+        private boolean isError;
 
         public Builder sqlId(String sqlId) {
             this.sqlId = sqlId;
@@ -68,6 +79,11 @@ public class LogSqlContext {
 
         public Builder elapsed(long elapsed) {
             this.elapsed = elapsed;
+            return this;
+        }
+
+        public Builder isError(boolean isError) {
+            this.isError = isError;
             return this;
         }
 

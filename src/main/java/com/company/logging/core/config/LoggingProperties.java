@@ -12,6 +12,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class LoggingProperties {
     private final Trace trace = new Trace();
     private final Slow slow = new Slow();
+    private final Limit limit = new Limit();
 
     /**
      * 추적(Trace) 관련 설정을 담는 내부 클래스입니다.
@@ -26,6 +27,39 @@ public class LoggingProperties {
 
         public void setLevel(TraceLevel level){
             this.level = (level != null) ? level : TraceLevel.PROD;
+        }
+    }
+
+    /**
+     * SQL 로깅 제한(OOM 방지) 설정을 담는 내부 클래스입니다.
+     */
+    public static class Limit {
+        private int maxSqlCount = 100;
+        private int maxSqlLength = 2000;
+        private int maxSqlParamLength = 1000;
+
+        public int getMaxSqlCount() {
+            return maxSqlCount;
+        }
+
+        public void setMaxSqlCount(int maxSqlCount) {
+            this.maxSqlCount = maxSqlCount;
+        }
+
+        public int getMaxSqlLength() {
+            return maxSqlLength;
+        }
+
+        public void setMaxSqlLength(int maxSqlLength) {
+            this.maxSqlLength = maxSqlLength;
+        }
+
+        public int getMaxSqlParamLength() {
+            return maxSqlParamLength;
+        }
+
+        public void setMaxSqlParamLength(int maxSqlParamLength) {
+            this.maxSqlParamLength = maxSqlParamLength;
         }
     }
 
@@ -82,5 +116,8 @@ public class LoggingProperties {
     }
     public Slow getSlow(){
         return slow;
+    }
+    public Limit getLimit() {
+        return limit;
     }
 }
