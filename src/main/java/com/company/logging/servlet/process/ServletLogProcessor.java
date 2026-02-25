@@ -7,7 +7,6 @@ import com.company.logging.core.process.AbstractLogProcessor;
 import com.company.logging.servlet.context.LogApiContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.slf4j.MDC;
 
 import java.util.Iterator;
 import java.util.Map;

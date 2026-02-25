@@ -71,7 +71,7 @@ public class SqlTraceInterceptor implements Interceptor {
             String sqlId = ms.getId();
 
 
-            String sql = null;
+            String sql;
             SqlTraceContext ctx = SqlTraceContextHolder.get();
 
             if(ctx != null){
