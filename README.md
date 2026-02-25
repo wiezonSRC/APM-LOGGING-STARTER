@@ -34,13 +34,19 @@
 
 ### 1. application.properties 설정
 ```properties
-# 로그 추적 활성화 (기본값: true)
-log.trace.enabled=true
+# ==========================
+# Logging Core
+# ==========================
 
+# 로그 추적 활성화 (기본값: true)
+log.enabled=true 
 # 로그 레벨 설정 (PROD, DEBUG, TRACE | 기본값: PROD)
 log.trace.level=PROD
 
-# 슬로우 쿼리 임계치 설정
+# ==========================
+# Slow Query Threshold
+# ==========================
+
 # 개별 쿼리 기준 (ms)
 log.slow.query.ms=300
 # 한 API 내 전체 SQL 합계 기준 (ms)
