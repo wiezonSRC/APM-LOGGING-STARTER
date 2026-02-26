@@ -36,9 +36,6 @@ class NettyLoggingTest {
              Scanner in = new Scanner(socket.getInputStream())) {
 
             out.println("Hello Netty");
-            if (in.hasNextLine()) {
-                in.nextLine(); // Echo 응답 대기
-            }
         }
 
         // 비동기 로깅을 위한 짧은 대기
@@ -60,9 +57,6 @@ class NettyLoggingTest {
              Scanner in = new Scanner(socket.getInputStream())) {
 
             out.println(longMessage);
-            if (in.hasNextLine()) {
-                in.nextLine();
-            }
         }
 
         Thread.sleep(500);
@@ -94,9 +88,6 @@ class NettyLoggingTest {
             out.write("World\n".getBytes());
             out.flush();
 
-            if (in.hasNextLine()) {
-                in.nextLine();
-            }
         }
 
         Thread.sleep(500);
