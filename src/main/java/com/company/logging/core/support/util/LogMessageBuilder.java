@@ -10,14 +10,16 @@ public class LogMessageBuilder {
     public static String buildException(LogMarker marker,
                                         String traceId,
                                         String spanId,
-                                        Throwable ex) {
+                                        Throwable ex,
+                                        int maxDepth,
+                                        int maxLines) {
 
-        String message = (ex != null) ? ex.getMessage() : "";
-        return String.format("[%s] trace_id=%s span_id=%s message=%s",
+        String stackTrace = (ex != null) ? CommonUtil.getStackTrace(ex, maxDepth, maxLines) : "";
+        return String.format("[%s] trace_id=%s span_id=%s\n%s",
                 marker,
                 traceId,
                 spanId,
-                message);
+                stackTrace);
     }
 
     // 2. TOTAL SLOW
@@ -35,15 +37,17 @@ public class LogMessageBuilder {
         );
     }
 
-    // 3. SQL 로그
+    // 3. SQL 로그 (쿼리와 파라미터를 한 줄에 출력)
     public static String buildSql(LogMarker marker,
                                   String traceId,
                                   String spanId,
                                   String sqlId,
                                   long elapsed,
-                                  String sql) {
+                                  String sql,
+                                  String sqlParam) {
 
-        return String.format(
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format(
                 "[%s] trace_id=%s span_id=%s sql_id=%s elapsed=%dms query=\"%s\"",
                 marker,
                 traceId,
@@ -51,26 +55,13 @@ public class LogMessageBuilder {
                 sqlId,
                 elapsed,
                 prettySql(sql)
-        );
-    }
+        ));
 
-    // 4. SQL Param 로그
-    public static String buildSqlParam(LogMarker marker,
-                                       String traceId,
-                                       String spanId,
-                                       String sqlId,
-                                       long elapsed,
-                                       Object param) {
+        if (sqlParam != null && !sqlParam.isEmpty()) {
+            sb.append(" param=").append(sqlParam);
+        }
 
-        return String.format(
-                "[%s] trace_id=%s span_id=%s sql_id=%s elapsed=%dms param=%s",
-                marker,
-                traceId,
-                spanId,
-                sqlId,
-                elapsed,
-                param
-        );
+        return sb.toString();
     }
 
     // 5. SQL 생략 로그
