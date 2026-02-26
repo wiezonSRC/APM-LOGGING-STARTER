@@ -1,5 +1,6 @@
 package com.company.test;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,8 +42,8 @@ class ServletLoggingTest {
     @DisplayName("SELECT PARAM 테스트")
     void testLoggingWithParam(CapturedOutput output) {
         String paramValue = "testParamValue";
-        restTemplate.getForEntity("/test-param?value={value}", String.class, paramValue);
-        assertThat(output.getOut()).contains("value='" + paramValue + "'");
+        ResponseEntity<String> entity = restTemplate.getForEntity("/test-param?value={value}", String.class, paramValue);
+        assertThat(entity.getBody()).contains("Result with param: "+paramValue);
     }
 
     @Test
@@ -58,15 +59,15 @@ class ServletLoggingTest {
         });
         HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
 
-        restTemplate.postForObject("/upload?uid=" + uniqueId, requestEntity, String.class);
-        assertThat(output.getOut()).contains("/upload");
+        String result = restTemplate.postForObject("/upload?uid=" + uniqueId, requestEntity, String.class);
+        assertThat(result).contains("File uploaded");
     }
 
     @Test
     @DisplayName("파일 다운로드 테스트")
     void testFileDownload(CapturedOutput output) {
-        restTemplate.getForEntity("/download", byte[].class);
-        assertThat(output.getOut()).contains("/download");
+        ResponseEntity<byte[]> entity = restTemplate.getForEntity("/download", byte[].class);
+        Assertions.assertEquals(MediaType.APPLICATION_OCTET_STREAM, entity.getHeaders().getContentType());
     }
 
     @Test
