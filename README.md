@@ -40,7 +40,7 @@
 
 # 로그 추적 활성화 (기본값: true)
 log.enabled=true 
-# 로그 레벨 설정 (PROD, DEBUG, TRACE | 기본값: PROD)
+# 로그 레벨 설정 (PROD, TRACE | 기본값: PROD)
 log.trace.level=PROD
 
 # ==========================
