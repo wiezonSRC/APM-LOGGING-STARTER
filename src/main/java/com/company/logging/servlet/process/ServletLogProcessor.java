@@ -4,6 +4,7 @@ import com.company.logging.core.config.LoggingProperties;
 import com.company.logging.core.enums.LogMarker;
 import com.company.logging.core.enums.TraceLevel;
 import com.company.logging.core.process.AbstractLogProcessor;
+import com.company.logging.core.support.util.CommonUtil;
 import com.company.logging.servlet.context.LogApiContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,10 +33,12 @@ public class ServletLogProcessor extends AbstractLogProcessor<LogApiContext> {
         String traceId = ctx.getTraceId();
         String spanId = ctx.getSpanId();
         TraceLevel level = resolveLevel();
+        LoggingProperties.CaptureMode bodyMode = properties.getCapture().getBody();
 
         boolean isError = ctx.getEx() != null || hasErrorCode(ctx.getResponseBody());
+        boolean isSlow = ctx.getElapsedMs() >= properties.getSlow().getApiMs();
 
-        // 1. 기본 요약 로그 (PROD 레벨)
+        // 1. 기본 요약 로그 (항상 출력)
         logger.info(
                 "[{}] trace_id={} span_id={} interface_id={} uri={} method={} status={} elapsed={}ms",
                 LogMarker.API_PROD,
@@ -48,30 +51,35 @@ public class ServletLogProcessor extends AbstractLogProcessor<LogApiContext> {
                 ctx.getElapsedMs()
         );
 
-        // 2. 상세 상세 로그 (DEBUG/TRACE 레벨이거나 에러일 때)
-        if (level == TraceLevel.DEBUG || level == TraceLevel.TRACE) {
-            logger.info(
-                    "[{}] trace_id={} span_id={} params={} request={} response={}",
-                    LogMarker.API_TRACE,
-                    traceId,
-                    spanId,
-                    ctx.getRequestParam(),
-                    ctx.getRequestBody(),
-                    ctx.getResponseBody()
-            );
+        // 2. 바디 로깅 여부 결정
+        boolean shouldLogBody = false;
+        if (bodyMode == LoggingProperties.CaptureMode.ALWAYS) {
+            shouldLogBody = true;
+        } else if (bodyMode == LoggingProperties.CaptureMode.ERROR && isError) {
+            shouldLogBody = true;
+        } else if (bodyMode == LoggingProperties.CaptureMode.SLOW && isSlow) {
+            shouldLogBody = true;
+        } else if (bodyMode == LoggingProperties.CaptureMode.SAMPLE) {
+            shouldLogBody = level == TraceLevel.TRACE;
+        } else if (level == TraceLevel.TRACE) {
+            shouldLogBody = true;
         }
 
-        // 3. 에러로그
-        if (isError){
+        if (shouldLogBody || isError) {
+            int maxBodyLen = properties.getLimit().getMaxBodyLength();
+            String reqBody = CommonUtil.truncate(ctx.getRequestBody(), maxBodyLen);
+            String resBody = CommonUtil.truncate(ctx.getResponseBody(), maxBodyLen);
+            
+            LogMarker marker = isError ? LogMarker.EXCEPTION : LogMarker.API_TRACE;
+
             logger.info(
                     "[{}] trace_id={} span_id={} params={} request={} response={}",
-                    LogMarker.EXCEPTION,
+                    marker,
                     traceId,
                     spanId,
                     ctx.getRequestParam(),
-                    ctx.getRequestBody(),
-                    ctx.getResponseBody(),
-                    ctx.getEx()
+                    reqBody,
+                    resBody
             );
         }
 

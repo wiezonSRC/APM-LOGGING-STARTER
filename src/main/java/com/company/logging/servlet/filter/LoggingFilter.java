@@ -57,6 +57,14 @@ public class LoggingFilter extends OncePerRequestFilter {
 
         // 헤더나 파라미터를 통한 강제 추적 여부 확인
         boolean forceTrace = "true".equalsIgnoreCase(request.getHeader("X-Debug-Trace")) || "true".equalsIgnoreCase(request.getParameter("trace"));
+        
+        // 샘플링 여부 결정
+        if (!forceTrace && level == TraceLevel.PROD) {
+            double sampleRate = properties.getCapture().getSampleRate();
+            if (sampleRate > 0 && Math.random() < sampleRate) {
+                forceTrace = true; // 샘플링된 요청은 TRACE 레벨로 처리되도록 함 (또는 별도 플래그)
+            }
+        }
 
         TraceContextHolder.init(traceId, spanId, level, forceTrace);
         SqlTraceContextHolder.init();

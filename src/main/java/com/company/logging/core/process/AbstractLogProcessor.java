@@ -29,7 +29,6 @@ public abstract class AbstractLogProcessor<T extends LogContext> {
      */
     protected TraceLevel resolveLevel(){
         if(TraceContextHolder.isTrace()) return TraceLevel.TRACE;
-        if(TraceContextHolder.isDebug()) return TraceLevel.DEBUG;
         return TraceLevel.PROD;
     }
 
@@ -48,6 +47,7 @@ public abstract class AbstractLogProcessor<T extends LogContext> {
         long totalSqlElapsed = SqlTraceContextHolder.totalElapsed();
         int totalSlowLimit = properties.getSlow().getQuery().getTotalMs();
         int slowQueryLimit = properties.getSlow().getQuery().getMs();
+        LoggingProperties.CaptureMode sqlMode = properties.getCapture().getSql();
 
         if (totalSqlElapsed >= totalSlowLimit) {
             logger.info(
@@ -63,57 +63,39 @@ public abstract class AbstractLogProcessor<T extends LogContext> {
         for (LogSqlContext sql : SqlTraceContextHolder.getAll()) {
 
             boolean isSlow = sql.getElapsed() >= slowQueryLimit;
-            // 해당 SQL 자체가 에러를 유발했거나 전체 API가 에러인 경우 상세 로깅
-            boolean shouldLogFull = sql.isError() || level == TraceLevel.TRACE || isError;
+            
+            // 정책에 따른 로깅 여부 결정
+            boolean shouldLog = false;
+            
+            if (sqlMode == LoggingProperties.CaptureMode.ALWAYS) {
+                shouldLog = true;
+            } else if (sqlMode == LoggingProperties.CaptureMode.ERROR && (isError || sql.isError())) {
+                shouldLog = true;
+            } else if (sqlMode == LoggingProperties.CaptureMode.SLOW && (isSlow || totalSqlElapsed >= totalSlowLimit)) {
+                shouldLog = true;
+            } else if (sqlMode == LoggingProperties.CaptureMode.SAMPLE) {
+                // 샘플링 로직은 Filter 등에서 결정된 forceTrace나 level로 판단
+                shouldLog = level == TraceLevel.TRACE;
+            } else if (level == TraceLevel.TRACE) {
+                shouldLog = true;
+            }
 
-            if (isSlow) {
-
-                logger.info(
-                        LogMessageBuilder.buildSql(
-                                LogMarker.SLOW_SQL,
-                                traceId,
-                                spanId,
-                                sql.getSqlId(),
-                                sql.getElapsed(),
-                                sql.getSql()
-                        )
-                );
-
-            } else if (shouldLogFull) {
-
-                logger.info(
-                        LogMessageBuilder.buildSql(
-                                LogMarker.SQL,
-                                traceId,
-                                spanId,
-                                sql.getSqlId(),
-                                sql.getElapsed(),
-                                sql.getSql()
-                        )
-                );
-
-            } else if (level == TraceLevel.DEBUG) {
-
-                logger.info(
-                        LogMessageBuilder.buildSqlParam(
-                                LogMarker.SQL,
-                                traceId,
-                                spanId,
-                                sql.getSqlId(),
-                                sql.getElapsed(),
-                                sql.getSqlParam()
-                        )
-                );
-            } else if(level == TraceLevel.PROD){
+            if (shouldLog || isError || sql.isError() || isSlow) {
+                LogMarker marker = isSlow ? LogMarker.SLOW_SQL : LogMarker.SQL;
+                
+                String sqlText = (sql.getSql() != null) ? sql.getSql() : "[SQL TEXT OMITTED BY POLICY]";
+                // TRACE 레벨이거나 상세 정보가 있을 때만 파라미터를 로그에 포함
+                String sqlParam = (level == TraceLevel.TRACE) ? sql.getSqlParam() : null;
 
                 logger.info(
                         LogMessageBuilder.buildSql(
-                                LogMarker.SQL,
+                                marker,
                                 traceId,
                                 spanId,
                                 sql.getSqlId(),
                                 sql.getElapsed(),
-                                CommonUtil.truncate(sql.getSql(), 200)
+                                sqlText,
+                                sqlParam
                         )
                 );
             }
@@ -139,9 +121,10 @@ public abstract class AbstractLogProcessor<T extends LogContext> {
                         LogMarker.EXCEPTION,
                         traceId,
                         spanId,
-                        ctx.getEx()
-                ),
-                ctx.getEx()
+                        ctx.getEx(),
+                        properties.getLimit().getMaxStackDepth(),
+                        properties.getLimit().getMaxStackLines()
+                )
         );
     }
 
