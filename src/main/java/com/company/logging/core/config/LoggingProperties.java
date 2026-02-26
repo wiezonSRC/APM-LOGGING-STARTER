@@ -13,6 +13,7 @@ public class LoggingProperties {
     private final Trace trace = new Trace();
     private final Slow slow = new Slow();
     private final Limit limit = new Limit();
+    private final Capture capture = new Capture();
 
     /**
      * 추적(Trace) 관련 설정을 담는 내부 클래스입니다.
@@ -31,13 +32,56 @@ public class LoggingProperties {
     }
 
     /**
-     * SQL 로깅 제한(OOM 방지) 설정을 담는 내부 클래스입니다.
+     * 캡처 모드를 정의하는 열거형입니다.
+     */
+    public enum CaptureMode {
+        ALWAYS, ERROR, SLOW, SAMPLE, OFF
+    }
+
+    /**
+     * 무엇을 캡처할지 결정하는 설정을 담는 내부 클래스입니다.
+     */
+    public static class Capture {
+        private CaptureMode body = CaptureMode.ERROR;
+        private CaptureMode sql = CaptureMode.SLOW;
+        private double sampleRate = 0.01; // 1%
+
+        public CaptureMode getBody() {
+            return body;
+        }
+
+        public void setBody(CaptureMode body) {
+            this.body = body;
+        }
+
+        public CaptureMode getSql() {
+            return sql;
+        }
+
+        public void setSql(CaptureMode sql) {
+            this.sql = sql;
+        }
+
+        public double getSampleRate() {
+            return sampleRate;
+        }
+
+        public void setSampleRate(double sampleRate) {
+            this.sampleRate = sampleRate;
+        }
+    }
+
+    /**
+     * 로깅 제한(OOM 방지) 설정을 담는 내부 클래스입니다.
      */
     public static class Limit {
         private int maxSqlCount = 100;
+        private int maxSqlDetailCount = 10; // 상세 정보를 남길 최대 SQL 개수
         private int maxSqlLength = 2000;
         private int maxSqlParamLength = 1000;
-        private int maxBodyLength = 1000;
+        private int maxBodyLength = 2000;
+        private int maxStackDepth = 5;      // Caused by 최대 깊이
+        private int maxStackLines = 3;      // 각 Cause당 라인 수
 
         public int getMaxSqlCount() {
             return maxSqlCount;
@@ -45,6 +89,14 @@ public class LoggingProperties {
 
         public void setMaxSqlCount(int maxSqlCount) {
             this.maxSqlCount = maxSqlCount;
+        }
+
+        public int getMaxSqlDetailCount() {
+            return maxSqlDetailCount;
+        }
+
+        public void setMaxSqlDetailCount(int maxSqlDetailCount) {
+            this.maxSqlDetailCount = maxSqlDetailCount;
         }
 
         public int getMaxSqlLength() {
@@ -70,6 +122,22 @@ public class LoggingProperties {
         public void setMaxBodyLength(int maxBodyLength) {
             this.maxBodyLength = maxBodyLength;
         }
+
+        public int getMaxStackDepth() {
+            return maxStackDepth;
+        }
+
+        public void setMaxStackDepth(int maxStackDepth) {
+            this.maxStackDepth = maxStackDepth;
+        }
+
+        public int getMaxStackLines() {
+            return maxStackLines;
+        }
+
+        public void setMaxStackLines(int maxStackLines) {
+            this.maxStackLines = maxStackLines;
+        }
     }
 
     /**
@@ -79,6 +147,15 @@ public class LoggingProperties {
 
         // log.slow.query 설정을 매핑
         private Query query = new Query();
+        private int apiMs = 1000; // API 전체 임계값
+
+        public int getApiMs() {
+            return apiMs;
+        }
+
+        public void setApiMs(int apiMs) {
+            this.apiMs = apiMs;
+        }
 
         /**
          * 쿼리 시간 임계값을 설정하는 내부 클래스입니다.
@@ -128,5 +205,8 @@ public class LoggingProperties {
     }
     public Limit getLimit() {
         return limit;
+    }
+    public Capture getCapture() {
+        return capture;
     }
 }
