@@ -72,11 +72,12 @@ public class SqlTraceInterceptor implements Interceptor {
             String sqlId = ms.getId();
 
 
-            String sql;
             SqlTraceContext ctx = SqlTraceContextHolder.get();
 
             if(ctx != null){
                 int maxCount = properties.getLimit().getMaxSqlCount();
+                int maxDetailCount = properties.getLimit().getMaxSqlDetailCount();
+                
                 boolean isFull = ctx.isFull(maxCount);
 
                 // 에러 발생 시에는 꽉 찼더라도 공간을 만들어서 저장함
@@ -88,15 +89,23 @@ public class SqlTraceInterceptor implements Interceptor {
                 if (isFull) {
                     ctx.addOmitted();
                 } else {
-                    sql = SQLUtil.buildSql(ms, param);
-                    // SQL 길이 제한 적용
-                    sql = CommonUtil.truncate(sql, properties.getLimit().getMaxSqlLength());
+                    // 상세 정보를 남길 것인지 결정 (에러이거나, 상세 개수 제한 내인 경우)
+                    boolean includeDetail = isError || !ctx.isDetailFull(maxDetailCount);
                     
-                    String sqlParam = extractSqlParam(ms, param);
-                    // 파라미터 길이 제한 적용
-                    sqlParam = CommonUtil.truncate(sqlParam, properties.getLimit().getMaxSqlParamLength());
+                    String sql = null;
+                    String sqlParam = null;
 
-                    ctx.add(sqlId, sql, sqlParam, elapsed, isError);
+                    if (includeDetail) {
+                        sql = SQLUtil.buildSql(ms, param);
+                        // SQL 길이 제한 적용
+                        sql = CommonUtil.truncate(sql, properties.getLimit().getMaxSqlLength());
+                        
+                        sqlParam = extractSqlParam(ms, param);
+                        // 파라미터 길이 제한 적용
+                        sqlParam = CommonUtil.truncate(sqlParam, properties.getLimit().getMaxSqlParamLength());
+                    }
+
+                    ctx.add(sqlId, sql, sqlParam, elapsed, isError, includeDetail);
                 }
             }
         }

@@ -21,16 +21,29 @@ public class SqlTraceContext {
      * @param sqlParam SQL 파라미터
      * @param elapsed 소요 시간(ms)
      * @param isError 에러 발생 여부
+     * @param includeDetail 상세 정보(SQL, Param) 포함 여부
      */
-    public void add(String sqlId, String sql, String sqlParam, long elapsed, boolean isError){
-        traces.add(new LogSqlContext.Builder()
+    public void add(String sqlId, String sql, String sqlParam, long elapsed, boolean isError, boolean includeDetail){
+        LogSqlContext.Builder builder = new LogSqlContext.Builder()
                 .sqlId(sqlId)
-                .sql(sql)
-                .sqlParam(sqlParam)
                 .elapsed(elapsed)
-                .isError(isError)
-                .build());
+                .isError(isError);
+
+        // 상세 정보 포함 조건: includeDetail가 true이거나 에러 발생 시
+        if (includeDetail || isError) {
+            builder.sql(sql).sqlParam(sqlParam);
+        }
+
+        traces.add(builder.build());
         totalElapsed += elapsed;
+    }
+
+    /**
+     * 상세 정보를 남길 수 있는 최대 개수에 도달했는지 확인합니다.
+     * (에러 쿼리는 이 제한과 무관하게 상세를 남길 수 있도록 처리 예정)
+     */
+    public boolean isDetailFull(int maxDetailCount) {
+        return traces.size() >= maxDetailCount;
     }
 
     /**
