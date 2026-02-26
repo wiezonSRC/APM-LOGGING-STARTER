@@ -65,13 +65,6 @@ public class TraceContextHolder {
     }
 
     /**
-     * 현재 상태가 DEBUG 레벨인지 확인합니다.
-     */
-    public static boolean isDebug(){
-        return level() == TraceLevel.DEBUG;
-    }
-
-    /**
      * ThreadLocal에 저장된 컨텍스트 정보를 제거합니다.
      */
     public static void clear(){
