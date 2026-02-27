@@ -116,7 +116,7 @@ class ServletLoggingTest {
     void testSqlExceptionMarker(CapturedOutput output) {
         restTemplate.getForEntity("/test-error-with-limit?count=3", String.class);
         assertThat(output.getOut()).contains("[SQL_EXCEPTION]");
-        assertThat(output.getOut()).contains("[ERROR_SQL]");
+        assertThat(output.getOut()).contains("[EXCEPTION]");
         assertThat(output.getOut()).contains("NON_EXISTENT_TABLE");
     }
 

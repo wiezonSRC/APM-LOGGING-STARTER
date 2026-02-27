@@ -70,11 +70,6 @@ public class TestController {
             testMapper.selectOne();
         }
         testMapper.selectError();
-//        try {
-//            testMapper.selectError();
-//        } catch (Exception e) {
-//            // Ignore to let the filter finish normally
-//        }
         return "Executed " + count + " queries and one error query";
     }
 

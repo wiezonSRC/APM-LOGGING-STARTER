@@ -7,8 +7,6 @@ import com.company.logging.core.context.TraceContextHolder;
 import com.company.logging.core.enums.LogMarker;
 import com.company.logging.core.enums.TraceLevel;
 import com.company.logging.core.sql.SqlTraceContextHolder;
-import com.company.logging.core.support.sql.SQLUtil;
-import com.company.logging.core.support.util.CommonUtil;
 import com.company.logging.core.support.util.LogMessageBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -86,7 +84,7 @@ public abstract class AbstractLogProcessor<T extends LogContext> {
                 if (sql.isError()) {
                     marker = LogMarker.SQL_EXCEPTION;
                 } else if (isSlow) {
-                    marker = LogMarker.SLOW_SQL;
+                    marker = LogMarker.SQL_SLOW;
                 } else {
                     marker = LogMarker.SQL;
                 }
