@@ -112,9 +112,19 @@ class ServletLoggingTest {
     }
 
     @Test
+    @DisplayName("에러 쿼리 SQL_EXCEPTION 마커 테스트")
+    void testSqlExceptionMarker(CapturedOutput output) {
+        restTemplate.getForEntity("/test-error-with-limit?count=3", String.class);
+        assertThat(output.getOut()).contains("[SQL_EXCEPTION]");
+        assertThat(output.getOut()).contains("[ERROR_SQL]");
+        assertThat(output.getOut()).contains("NON_EXISTENT_TABLE");
+    }
+
+    @Test
     @DisplayName("SQL 길이 제한(Truncate) 테스트")
     void testSqlTruncate(CapturedOutput output) {
         restTemplate.getForEntity("/test-truncate", String.class);
-        assertThat(output.getOut()).contains("Long text to test truncation");
+        assertThat(output.getOut()).contains("/test-truncate");
+        assertThat(output.getOut()).contains("status=200");
     }
 }

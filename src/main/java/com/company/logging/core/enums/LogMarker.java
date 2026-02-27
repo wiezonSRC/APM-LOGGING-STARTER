@@ -11,6 +11,7 @@ public enum LogMarker {
     BATCH_PROD("[BATCH_PROD]"),
     SQL("[SQL]"),
     SLOW_SQL("[SLOW_SQL]"),
+    SQL_EXCEPTION("[SQL_EXCEPTION]"),
     EXCEPTION("[EXCEPTION]");
 
     private final String label;

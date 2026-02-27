@@ -69,11 +69,12 @@ public class TestController {
         for (int i = 0; i < count; i++) {
             testMapper.selectOne();
         }
-        try {
-            testMapper.selectError();
-        } catch (Exception e) {
-            // Ignore to let the filter finish normally
-        }
+        testMapper.selectError();
+//        try {
+//            testMapper.selectError();
+//        } catch (Exception e) {
+//            // Ignore to let the filter finish normally
+//        }
         return "Executed " + count + " queries and one error query";
     }
 

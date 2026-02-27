@@ -81,8 +81,16 @@ public abstract class AbstractLogProcessor<T extends LogContext> {
             }
 
             if (shouldLog || isError || sql.isError() || isSlow) {
-                LogMarker marker = isSlow ? LogMarker.SLOW_SQL : LogMarker.SQL;
-                
+
+                LogMarker marker;
+                if (sql.isError()) {
+                    marker = LogMarker.SQL_EXCEPTION;
+                } else if (isSlow) {
+                    marker = LogMarker.SLOW_SQL;
+                } else {
+                    marker = LogMarker.SQL;
+                }
+
                 String sqlText = (sql.getSql() != null) ? sql.getSql() : "[SQL TEXT OMITTED BY POLICY]";
                 // TRACE 레벨이거나 상세 정보가 있을 때만 파라미터를 로그에 포함
                 String sqlParam = (level == TraceLevel.TRACE) ? sql.getSqlParam() : null;
@@ -103,7 +111,7 @@ public abstract class AbstractLogProcessor<T extends LogContext> {
 
         int omittedCount = SqlTraceContextHolder.get() != null ? SqlTraceContextHolder.get().getOmittedCount() : 0;
         if (omittedCount > 0) {
-            logger.warn(LogMessageBuilder.buildSqlOmitted(traceId, spanId, omittedCount));
+            logger.info(LogMessageBuilder.buildSqlOmitted(traceId, spanId, omittedCount));
         }
     }
 
