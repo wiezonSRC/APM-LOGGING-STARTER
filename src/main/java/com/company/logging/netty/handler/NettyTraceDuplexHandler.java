@@ -32,6 +32,7 @@ public class NettyTraceDuplexHandler extends ChannelDuplexHandler {
     private static final AttributeKey<String> REQUEST_DATA_KEY = AttributeKey.valueOf("REQUEST_DATA");
     private static final AttributeKey<String> RESPONSE_DATA_KEY = AttributeKey.valueOf("RESPONSE_DATA");
     private static final AttributeKey<SqlTraceContext> SQL_CONTEXT_KEY = AttributeKey.valueOf("SQL_CONTEXT");
+    private static final AttributeKey<Exception> ERROR_CONTEXT_KEY = AttributeKey.valueOf("ERROR_CONTEXT");
 
     public NettyTraceDuplexHandler(LoggingProperties properties) {
         this.properties = properties;
@@ -95,16 +96,43 @@ public class NettyTraceDuplexHandler extends ChannelDuplexHandler {
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         try {
+            logNetty(ctx, null);
             clearContext(ctx);
         } finally {
             super.channelInactive(ctx);
         }
     }
 
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        try {
+            Exception e = cause instanceof Exception ex ? ex : new RuntimeException(cause);
+            ctx.channel().attr(ERROR_CONTEXT_KEY).set(e);
+            logNetty(ctx, e);
+            clearContext(ctx);
+        } finally {
+            super.exceptionCaught(ctx, cause);
+        }
+    }
+
     private void logNetty(ChannelHandlerContext ctx, Exception ex) {
         String traceId = ctx.channel().attr(TRACE_ID_KEY).get();
-        String spanId = ctx.channel().attr(SPAN_ID_KEY).get();
         if (traceId == null) return;
+
+        // 전달받은 ex가 없으면 ERROR_CONTEXT에서 확인
+        if (ex == null) {
+            ex = ctx.channel().attr(ERROR_CONTEXT_KEY).get();
+        }
+
+        // 만약 정상 종료 시도인데 이미 에러가 예약되어 있다면, 여기서 로깅하지 않고 exceptionCaught가 처리하도록 함
+        if (ex == null && ctx.channel().attr(ERROR_CONTEXT_KEY).get() != null) {
+            return;
+        }
+
+        // 로깅 확정 시 traceId 소모
+        ctx.channel().attr(TRACE_ID_KEY).set(null);
+
+        String spanId = ctx.channel().attr(SPAN_ID_KEY).get();
 
         Long startNano = ctx.channel().attr(START_NANO_KEY).get();
         double elapsedMs = (startNano != null) ? (System.nanoTime() - startNano) / 1_000_000.0 : 0;
@@ -117,6 +145,14 @@ public class NettyTraceDuplexHandler extends ChannelDuplexHandler {
         String reqData = ctx.channel().attr(REQUEST_DATA_KEY).get();
         String resData = ctx.channel().attr(RESPONSE_DATA_KEY).get();
         SqlTraceContext sqlCtx = ctx.channel().attr(SQL_CONTEXT_KEY).get();
+
+        if (sqlCtx != null) {
+            SqlTraceContextHolder.set(sqlCtx);
+        }
+
+        // logApi 수행 전에 ThreadLocal 설정 (SQL 로깅 시 level 확인 및 traceId/spanId 사용을 위함)
+        // 테스트 등을 위해 forceTrace를 true로 설정하여 모든 상세 정보가 나오도록 유도
+        TraceContextHolder.init(traceId, spanId, properties.getTrace().getLevel(), true);
 
         LogNettyContext.Builder builder = new LogNettyContext.Builder()
                 .traceId(traceId)
@@ -145,6 +181,7 @@ public class NettyTraceDuplexHandler extends ChannelDuplexHandler {
         ctx.channel().attr(REQUEST_DATA_KEY).set(null);
         ctx.channel().attr(RESPONSE_DATA_KEY).set(null);
         ctx.channel().attr(SQL_CONTEXT_KEY).set(null);
+        ctx.channel().attr(ERROR_CONTEXT_KEY).set(null);
 
         SqlTraceContextHolder.clear();
         TraceContextHolder.clear();

@@ -122,7 +122,7 @@ public abstract class AbstractLogProcessor<T extends LogContext> {
         if (!logger.isInfoEnabled()) return;
         if (ctx.getEx() == null) return;
 
-        logger.error(
+        logger.info(
                 LogMessageBuilder.buildException(
                         LogMarker.EXCEPTION,
                         traceId,
