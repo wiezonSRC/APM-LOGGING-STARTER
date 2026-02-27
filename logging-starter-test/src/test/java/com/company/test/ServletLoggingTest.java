@@ -18,8 +18,12 @@ import org.springframework.util.MultiValueMap;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ExtendWith(OutputCaptureExtension.class)
@@ -126,5 +130,22 @@ class ServletLoggingTest {
         restTemplate.getForEntity("/test-truncate", String.class);
         assertThat(output.getOut()).contains("/test-truncate");
         assertThat(output.getOut()).contains("status=200");
+    }
+
+    @Test
+    @DisplayName("SQL OOM 테스트")
+    void testSqlOrm(CapturedOutput output) throws InterruptedException {
+        ExecutorService executor = Executors.newFixedThreadPool(100);
+
+        Runnable task = () -> {
+            restTemplate.getForEntity("/test-oom?count=1000", String.class);
+        };
+
+        for (int i = 0; i < 100; i++) {
+            executor.submit(task);
+        }
+
+        executor.shutdown();
+        executor.awaitTermination(5, TimeUnit.MINUTES);
     }
 }

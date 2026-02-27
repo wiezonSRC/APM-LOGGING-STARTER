@@ -12,6 +12,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+
 @RestController
 public class TestController {
 
@@ -77,5 +82,12 @@ public class TestController {
     public String testTruncate() {
         testMapper.selectLongText();
         return "Truncate test";
+    }
+
+    @GetMapping("/test-oom")
+    public void testOOM(@RequestParam(defaultValue = "100") int count) {
+        for(int i = 0; i < count; i++){
+            testMapper.selectLongSql();
+        }
     }
 }
