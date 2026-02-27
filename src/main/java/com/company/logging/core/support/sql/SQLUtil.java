@@ -20,18 +20,22 @@ public class SQLUtil {
      *
      * @param ms MappedStatement
      * @param param 파라미터 객체
+     * @param maxLength 최대 허용 길이
      * @return 파라미터가 치환된 SQL 문자열
      */
-    public static String buildSql(MappedStatement ms, Object param){
+    public static String buildSql(MappedStatement ms, Object param, int maxLength){
         BoundSql boundSql = ms.getBoundSql(param);
         String sql = boundSql.getSql();
         List<ParameterMapping> mappings = boundSql.getParameterMappings();
 
         if(mappings == null || mappings.isEmpty()){
+            if (sql != null && sql.length() > maxLength) {
+                return sql.substring(0, maxLength) + "...(TRUNCATED)";
+            }
             return sql;
         }
 
-        return replacePlaceholders(sql, mappings, boundSql, ms.getConfiguration(), param);
+        return replacePlaceholders(sql, mappings, boundSql, ms.getConfiguration(), param, maxLength);
     }
 
 
@@ -40,13 +44,18 @@ public class SQLUtil {
      * SQL 문자열 내의 '?'를 순차적으로 파라미터 값으로 치환합니다.
      * 문자열 리터럴이나 주석 내의 '?'는 무시합니다.
      */
-    private static String replacePlaceholders(String sql, List<ParameterMapping> mappings, BoundSql boundSql, Configuration configuration, Object param) {
+    private static String replacePlaceholders(String sql, List<ParameterMapping> mappings, BoundSql boundSql, Configuration configuration, Object param, int maxLength) {
         StringBuilder sb = new StringBuilder();
         SqlContext ctx = SqlContext.NORMAL;
 
         int paramIdx = 0;
         MetaObject metaObject = param == null ? null : configuration.newMetaObject(param);
         for(int i = 0; i < sql.length(); i++){
+            if (sb.length() >= maxLength) {
+                sb.append("...(TRUNCATED)");
+                return sb.toString();
+            }
+
             char c = sql.charAt(i);
 
             // SQL 파싱 컨텍스트 상태 관리 (따옴표, 주석 등)

@@ -2,7 +2,6 @@ package com.company.logging.core.sql;
 
 import com.company.logging.core.config.LoggingProperties;
 import com.company.logging.core.support.sql.SQLUtil;
-import com.company.logging.core.support.util.CommonUtil;
 import org.apache.ibatis.executor.CachingExecutor;
 import org.apache.ibatis.executor.Executor;
 import org.apache.ibatis.mapping.BoundSql;
@@ -96,13 +95,11 @@ public class SqlTraceInterceptor implements Interceptor {
                     String sqlParam = null;
 
                     if (includeDetail) {
-                        sql = SQLUtil.buildSql(ms, param);
-                        // SQL 길이 제한 적용
-                        sql = CommonUtil.truncate(sql, properties.getLimit().getMaxSqlLength());
-                        
-                        sqlParam = extractSqlParam(ms, param);
-                        // 파라미터 길이 제한 적용
-                        sqlParam = CommonUtil.truncate(sqlParam, properties.getLimit().getMaxSqlParamLength());
+                        int maxSqlLen = properties.getLimit().getMaxSqlLength();
+                        int maxParamLen = properties.getLimit().getMaxSqlParamLength();
+
+                        sql = SQLUtil.buildSql(ms, param, maxSqlLen);
+                        sqlParam = extractSqlParam(ms, param, maxParamLen);
                     }
 
                     ctx.add(sqlId, sql, sqlParam, elapsed, isError, includeDetail);
@@ -115,7 +112,7 @@ public class SqlTraceInterceptor implements Interceptor {
     /**
      * SQL 파라미터를 문자열로 추출합니다.
      */
-    private String extractSqlParam(MappedStatement ms, Object param) {
+    private String extractSqlParam(MappedStatement ms, Object param, int maxLength) {
         if(param == null) return null;
 
         BoundSql boundSql = ms.getBoundSql(param);
@@ -133,6 +130,11 @@ public class SqlTraceInterceptor implements Interceptor {
 
         boolean first = true;
         for(ParameterMapping pm : mappings){
+            if (sb.length() >= maxLength) {
+                sb.append("...(TRUNCATED)");
+                break;
+            }
+
             String prop = pm.getProperty();
             Object value;
 
