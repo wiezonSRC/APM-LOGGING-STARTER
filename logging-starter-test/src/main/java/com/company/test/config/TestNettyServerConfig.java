@@ -13,6 +13,8 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.springframework.context.annotation.Configuration;
 
+import java.sql.SQLException;
+
 @Configuration
 public class TestNettyServerConfig {
 
@@ -42,9 +44,9 @@ public class TestNettyServerConfig {
                 .childHandler(new ChannelInitializer<SocketChannel>() {
                     @Override
                     public void initChannel(SocketChannel ch) {
+                        ch.pipeline().addLast("logging_head", nettyTraceDuplexHandler);
                         ch.pipeline().addLast(new StringDecoder());
                         ch.pipeline().addLast(new StringEncoder());
-                        ch.pipeline().addLast(nettyTraceDuplexHandler);
                         ch.pipeline().addLast(new io.netty.channel.ChannelInboundHandlerAdapter() {
                             private StringBuilder accum = new StringBuilder();
                             @Override
@@ -72,13 +74,10 @@ public class TestNettyServerConfig {
                                                 }
                                                 ctx.writeAndFlush("OOM_TEST_DONE\n");
                                             } else if ("ERROR_TEST".equals(finalMsg)) {
-                                                try {
-                                                    // Trigger SQL then Exception
-                                                    testMapper.selectWithParam("Before Error");
-                                                    throw new RuntimeException("Netty Test Exception");
-                                                } catch (Exception e) {
-                                                    ctx.fireExceptionCaught(e);
-                                                }
+                                                // Trigger SQL then Exception
+                                                testMapper.selectWithParam("Before Error");
+                                                throw new SQLException("Netty Test Exception");
+
                                             } else {
                                                 // Simulating long processing and SQL execution
                                                 testMapper.selectWithParam("Netty-" + finalMsg);
@@ -95,6 +94,7 @@ public class TestNettyServerConfig {
                                 }
                             }
                         });
+                        ch.pipeline().addLast("logging_tail", nettyTraceDuplexHandler);
                     }
                 });
 
