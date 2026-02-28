@@ -36,6 +36,7 @@ public class LoggingBatchListener implements JobExecutionListener, StepExecution
         // JobExecutionContext에 저장 (Step들이 공유 가능)
         jobExecution.getExecutionContext().put("traceId", traceId);
         jobExecution.getExecutionContext().put("jobSpanId", jobSpanId);
+        jobExecution.getExecutionContext().put("jobStartNano", System.nanoTime());
 
         TraceContextHolder.init(traceId, jobSpanId, properties.getTrace().getLevel(), false);
         SqlTraceContextHolder.init();
@@ -46,13 +47,11 @@ public class LoggingBatchListener implements JobExecutionListener, StepExecution
         try {
             String traceId = jobExecution.getExecutionContext().getString("traceId");
             String jobSpanId = jobExecution.getExecutionContext().getString("jobSpanId");
+            Long startNano = (Long) jobExecution.getExecutionContext().get("jobStartNano");
 
             double elapsedMs = 0;
-            if (jobExecution.getEndTime() != null && jobExecution.getStartTime() != null) {
-                elapsedMs = ChronoUnit.MILLIS.between(
-                        jobExecution.getStartTime(),
-                        jobExecution.getEndTime()
-                );
+            if (startNano != null) {
+                elapsedMs = (System.nanoTime() - startNano) / 1_000_000.0;
             }
 
             Exception ex = null;
@@ -85,6 +84,7 @@ public class LoggingBatchListener implements JobExecutionListener, StepExecution
 
         // Step ExecutionContext에 개별 Span ID 저장
         stepExecution.getExecutionContext().put("stepSpanId", stepSpanId);
+        stepExecution.getExecutionContext().put("stepStartNano", System.nanoTime());
 
         // 해당 Step 내에서 실행될 SQL 추적을 위해 컨텍스트 업데이트
         TraceContextHolder.init(traceId, stepSpanId, properties.getTrace().getLevel(), false);
@@ -96,13 +96,11 @@ public class LoggingBatchListener implements JobExecutionListener, StepExecution
 
         String traceId = stepExecution.getJobExecution().getExecutionContext().getString("traceId");
         String stepSpanId = stepExecution.getExecutionContext().getString("stepSpanId");
+        Long startNano = (Long) stepExecution.getExecutionContext().get("stepStartNano");
 
         double elapsedMs = 0;
-        if (stepExecution.getEndTime() != null && stepExecution.getStartTime() != null) {
-            elapsedMs = ChronoUnit.MILLIS.between(
-                    stepExecution.getStartTime(),
-                    stepExecution.getEndTime()
-            );
+        if (startNano != null) {
+            elapsedMs = (System.nanoTime() - startNano) / 1_000_000.0;
         }
 
         Exception ex = null;

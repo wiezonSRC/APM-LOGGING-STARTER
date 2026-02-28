@@ -34,6 +34,14 @@ public class TestBatchConfig {
     }
 
     @Bean
+    public Job heavySqlJob(JobRepository jobRepository, Step heavySqlStep) {
+        return new JobBuilder("heavySqlJob", jobRepository)
+                .listener(loggingBatchListener)
+                .start(heavySqlStep)
+                .build();
+    }
+
+    @Bean
     public Step step1(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
         return new StepBuilder("step1", jobRepository)
                 .listener(loggingBatchListener)
@@ -50,6 +58,20 @@ public class TestBatchConfig {
                 .listener(loggingBatchListener)
                 .tasklet((contribution, chunkContext) -> {
                     testMapper.selectOne();
+                    return RepeatStatus.FINISHED;
+                }, transactionManager)
+                .build();
+    }
+
+    @Bean
+    public Step heavySqlStep(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
+        return new StepBuilder("heavySqlStep", jobRepository)
+                .listener(loggingBatchListener)
+                .tasklet((contribution, chunkContext) -> {
+                    // max-sql-count is 10 in application-test.properties
+                    for (int i = 0; i < 10000; i++) {
+                        testMapper.selectOne();
+                    }
                     return RepeatStatus.FINISHED;
                 }, transactionManager)
                 .build();
