@@ -13,6 +13,12 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
 import com.company.test.mapper.TestMapper;
 
+import org.springframework.batch.core.partition.support.Partitioner;
+import org.springframework.batch.item.ExecutionContext;
+import org.springframework.core.task.SimpleAsyncTaskExecutor;
+import java.util.HashMap;
+import java.util.Map;
+
 @Configuration
 public class TestBatchConfig {
 
@@ -42,6 +48,35 @@ public class TestBatchConfig {
     }
 
     @Bean
+    public Job partitionedJob(JobRepository jobRepository, Step masterStep) {
+        return new JobBuilder("partitionedJob", jobRepository)
+                .listener(loggingBatchListener)
+                .start(masterStep)
+                .build();
+    }
+
+    @Bean
+    public Step masterStep(JobRepository jobRepository, Step workerStep) {
+        return new StepBuilder("masterStep", jobRepository)
+                .partitioner(workerStep.getName(), partitioner())
+                .step(workerStep)
+                .gridSize(3)
+                .taskExecutor(new SimpleAsyncTaskExecutor())
+                .build();
+    }
+
+    @Bean
+    public Partitioner partitioner() {
+        return gridSize -> {
+            Map<String, ExecutionContext> map = new HashMap<>();
+            for (int i = 0; i < gridSize; i++) {
+                map.put("partition" + i, new ExecutionContext());
+            }
+            return map;
+        };
+    }
+
+    @Bean
     public Step step1(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
         return new StepBuilder("step1", jobRepository)
                 .listener(loggingBatchListener)
@@ -55,6 +90,17 @@ public class TestBatchConfig {
     @Bean
     public Step step2(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
         return new StepBuilder("step2", jobRepository)
+                .listener(loggingBatchListener)
+                .tasklet((contribution, chunkContext) -> {
+                    testMapper.selectOne();
+                    return RepeatStatus.FINISHED;
+                }, transactionManager)
+                .build();
+    }
+
+    @Bean
+    public Step workerStep(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
+        return new StepBuilder("workerStep", jobRepository)
                 .listener(loggingBatchListener)
                 .tasklet((contribution, chunkContext) -> {
                     testMapper.selectOne();
