@@ -8,6 +8,9 @@
         <encoder>
             <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level [%marker] %logger{36} - %msg%n</pattern>
         </encoder>
+        <filter class="com.company.logging.core.support.logback.MetricMarkerFilter">
+            <acceptIfMarkerPresent>true</acceptIfMarkerPresent>
+        </filter>
     </appender>
 
     <!-- 2. "Log" 로거 설정 -->
