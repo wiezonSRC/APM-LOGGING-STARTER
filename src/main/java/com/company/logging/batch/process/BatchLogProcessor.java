@@ -21,8 +21,8 @@ public class BatchLogProcessor extends AbstractLogProcessor<LogBatchContext> {
 
         // 1. Batch 요약
         logger.info(
-                "[{}] trace_id={} span_id={} job_name={} step_name={} status={} elapsed={}ms",
-                LogMarker.BATCH_PROD,
+                LogMarker.BATCH_PROD.marker(),
+                "trace_id={} span_id={} job_name={} step_name={} status={} elapsed={}ms",
                 traceId,
                 spanId,
                 ctx.getJobName(),

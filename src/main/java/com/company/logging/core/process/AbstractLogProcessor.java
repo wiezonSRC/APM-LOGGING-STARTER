@@ -49,6 +49,7 @@ public abstract class AbstractLogProcessor<T extends LogContext> {
 
         if (totalSqlElapsed >= totalSlowLimit) {
             logger.info(
+                    LogMarker.SQL.marker(),
                     LogMessageBuilder.buildTotalSlow(
                             traceId,
                             spanId,
@@ -94,6 +95,7 @@ public abstract class AbstractLogProcessor<T extends LogContext> {
                 String sqlParam = (level == TraceLevel.TRACE) ? sql.getSqlParam() : null;
 
                 logger.info(
+                        marker.marker(),
                         LogMessageBuilder.buildSql(
                                 marker,
                                 traceId,
@@ -109,7 +111,7 @@ public abstract class AbstractLogProcessor<T extends LogContext> {
 
         int omittedCount = SqlTraceContextHolder.get() != null ? SqlTraceContextHolder.get().getOmittedCount() : 0;
         if (omittedCount > 0) {
-            logger.info(LogMessageBuilder.buildSqlOmitted(traceId, spanId, omittedCount));
+            logger.info(LogMarker.SQL.marker(), LogMessageBuilder.buildSqlOmitted(traceId, spanId, omittedCount));
         }
     }
 
@@ -123,6 +125,7 @@ public abstract class AbstractLogProcessor<T extends LogContext> {
         if (ctx.getEx() == null) return;
 
         logger.info(
+                LogMarker.EXCEPTION.marker(),
                 LogMessageBuilder.buildException(
                         LogMarker.EXCEPTION,
                         traceId,

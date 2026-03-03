@@ -24,8 +24,8 @@ public class NettyLogProcessor extends AbstractLogProcessor<LogNettyContext> {
 
         // 1. 기본 요약 로그 (항상 출력)
         logger.info(
-                "[{}] trace_id={} span_id={} client_ip={} status={} elapsed={}ms",
-                LogMarker.NETTY_PROD,
+                LogMarker.NETTY_PROD.marker(),
+                "trace_id={} span_id={} client_ip={} status={} elapsed={}ms",
                 traceId,
                 spanId,
                 ctx.getClientIp(),
@@ -55,8 +55,8 @@ public class NettyLogProcessor extends AbstractLogProcessor<LogNettyContext> {
             LogMarker marker = isError ? LogMarker.EXCEPTION : LogMarker.API_TRACE;
 
             logger.info(
-                    "[{}] trace_id={} span_id={} request={} response={}",
-                    marker,
+                    marker.marker(),
+                    "trace_id={} span_id={} request={} response={}",
                     traceId,
                     spanId,
                     reqData,

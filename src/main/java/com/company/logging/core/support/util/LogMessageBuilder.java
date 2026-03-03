@@ -15,8 +15,7 @@ public class LogMessageBuilder {
                                         int maxLines) {
 
         String stackTrace = (ex != null) ? CommonUtil.getStackTrace(ex, maxDepth, maxLines) : "";
-        return String.format("[%s] trace_id=%s span_id=%s\n%s",
-                marker,
+        return String.format("trace_id=%s span_id=%s\n%s",
                 traceId,
                 spanId,
                 stackTrace);
@@ -29,7 +28,7 @@ public class LogMessageBuilder {
                                         long limit) {
 
         return String.format(
-                "[SQL] (TOTAL_SLOW) trace_id=%s span_id=%s total_sql_elapsed=%dms (limit=%dms)",
+                "(TOTAL_SLOW) trace_id=%s span_id=%s total_sql_elapsed=%dms (limit=%dms)",
                 traceId,
                 spanId,
                 totalElapsed,
@@ -48,8 +47,7 @@ public class LogMessageBuilder {
 
         StringBuilder sb = new StringBuilder();
         sb.append(String.format(
-                "[%s] trace_id=%s span_id=%s sql_id=%s elapsed=%dms query=\"%s\"",
-                marker,
+                "trace_id=%s span_id=%s sql_id=%s elapsed=%dms query=\"%s\"",
                 traceId,
                 spanId,
                 sqlId,
@@ -70,7 +68,7 @@ public class LogMessageBuilder {
                                          int omittedCount) {
 
         return String.format(
-                "[SQL] (OMITTED) trace_id=%s span_id=%s message=\"Too many SQLs in one request. %d queries omitted.\"",
+                "(OMITTED) trace_id=%s span_id=%s message=\"Too many SQLs in one request. %d queries omitted.\"",
                 traceId,
                 spanId,
                 omittedCount

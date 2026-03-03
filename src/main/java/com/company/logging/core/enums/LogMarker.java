@@ -1,31 +1,34 @@
 package com.company.logging.core.enums;
 
+import org.slf4j.Marker;
+import org.slf4j.MarkerFactory;
+
 public enum LogMarker {
-    API_PROD("API_PROD"),
-    API_DEBUG("API_DEBUG]"),
-    API_TRACE("API_TRACE"),
-    REQ_BODY("REQ_BODY"),
-    RES_BODY("RES_BODY"),
-    NETTY_PROD("NETTY_PROD"),
-    NETTY_DATA("NETTY_DATA"),
-    BATCH_PROD("BATCH_PROD"),
-    SQL("SQL"),
-    SQL_SLOW("SQL_SLOW"),
-    SQL_EXCEPTION("SQL_EXCEPTION"),
-    EXCEPTION("EXCEPTION");
+    API_PROD,
+    API_DEBUG,
+    API_TRACE,
+    REQ_BODY,
+    RES_BODY,
+    NETTY_PROD,
+    NETTY_DATA,
+    BATCH_PROD,
+    SQL,
+    SQL_SLOW,
+    SQL_EXCEPTION,
+    EXCEPTION;
 
-    private final String label;
+    private final Marker marker;
 
-    LogMarker(String label) {
-        this.label = label;
+    LogMarker() {
+        this.marker = MarkerFactory.getMarker(this.name());
     }
 
-    public String label() {
-        return label;
+    public Marker marker() {
+        return marker;
     }
 
     @Override
     public String toString() {
-        return label;
+        return this.name();
     }
 }

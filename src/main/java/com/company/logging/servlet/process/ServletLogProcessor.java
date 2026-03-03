@@ -40,8 +40,8 @@ public class ServletLogProcessor extends AbstractLogProcessor<LogApiContext> {
 
         // 1. 기본 요약 로그 (항상 출력)
         logger.info(
-                "[{}] trace_id={} span_id={} interface_id={} uri={} method={} status={} elapsed={}ms",
-                LogMarker.API_PROD,
+                LogMarker.API_PROD.marker(),
+                "trace_id={} span_id={} interface_id={} uri={} method={} status={} elapsed={}ms",
                 traceId,
                 spanId,
                 ctx.getInterfaceId(),
@@ -73,8 +73,8 @@ public class ServletLogProcessor extends AbstractLogProcessor<LogApiContext> {
             LogMarker marker = isError ? LogMarker.EXCEPTION : LogMarker.API_TRACE;
 
             logger.info(
-                    "[{}] trace_id={} span_id={} params={} request={} response={}",
-                    marker,
+                    marker.marker(),
+                    "trace_id={} span_id={} params={} request={} response={}",
                     traceId,
                     spanId,
                     ctx.getRequestParam(),
