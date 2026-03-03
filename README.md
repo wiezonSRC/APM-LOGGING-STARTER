@@ -90,7 +90,44 @@ return new JobBuilder("myJob", jobRepository)
 Starter 로그를 올바르게 출력하기 위해 소비 프로젝트의 패턴에 **`[%X{traceId}]`**가 반드시 포함되어야 합니다.
 
 ```xml
-<property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss:SSS} [%thread] %-5level [%X{traceId}] %logger{36} - %msg%n" />
+<!-- ================= API_METRIC.log ================= -->
+<!-- Marker 전용 파일 -->
+<appender name="API_METRIC_FILE"
+          class="ch.qos.logback.core.rolling.RollingFileAppender">
+
+<file>${LOG_PATH}/API_METRIC.log</file>
+
+<encoder>
+  <pattern>
+    %d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%marker] %logger{36} [%M] - %msg%n
+  </pattern>
+</encoder>
+
+<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+  <fileNamePattern>
+    ${LOG_PATH}/API_METRIC-%d{yyyy-MM-dd}_%i.log
+  </fileNamePattern>
+
+  <timeBasedFileNamingAndTriggeringPolicy
+          class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+    <maxFileSize>10MB</maxFileSize>
+    <maxHistory>5</maxHistory>
+  </timeBasedFileNamingAndTriggeringPolicy>
+</rollingPolicy>
+
+<!-- Marker 로그만 허용 -->
+<filter class="com.company.logging.core.support.logback.MetricMarkerFilter">
+  <acceptIfMarkerPresent>true</acceptIfMarkerPresent>
+</filter>
+
+<!-- root에 API_METRIC_FILE 추가 -->
+<root level="INFO">
+  <appender-ref ref="STDOUT"/>
+  <appender-ref ref="FILE"/>
+  <appender-ref ref="API_METRIC_FILE"/>
+</root>
+
+</appender>
 ```
 
 ---
