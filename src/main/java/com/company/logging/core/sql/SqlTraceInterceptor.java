@@ -18,6 +18,8 @@ import org.apache.ibatis.session.RowBounds;
 
 import java.util.List;
 
+import com.company.logging.core.config.LoggingPropertiesHolder;
+
 /**
  * MyBatis 실행을 가로채어 SQL 실행 정보를 수집하는 인터셉터입니다.
  * Executor의 update 및 query 메서드를 가로챕니다.
@@ -43,14 +45,30 @@ public class SqlTraceInterceptor implements Interceptor {
 
     private final LoggingProperties properties;
 
+    public SqlTraceInterceptor() {
+        this(null);
+    }
+
     public SqlTraceInterceptor(LoggingProperties properties) {
         this.properties = properties;
+    }
+
+    private LoggingProperties getProperties() {
+        if (this.properties != null) {
+            return this.properties;
+        }
+        return LoggingPropertiesHolder.getProperties();
     }
 
     @Override
     public Object intercept(Invocation invocation) throws Throwable {
         long start = System.currentTimeMillis();
         boolean isError = false;
+
+        LoggingProperties props = getProperties();
+        if (props == null) {
+            return invocation.proceed();
+        }
 
         if (invocation.getTarget() instanceof CachingExecutor) {
             return invocation.proceed();
@@ -74,8 +92,8 @@ public class SqlTraceInterceptor implements Interceptor {
             SqlTraceContext ctx = SqlTraceContextHolder.get();
 
             if(ctx != null){
-                int maxCount = properties.getLimit().getMaxSqlCount();
-                int maxDetailCount = properties.getLimit().getMaxSqlDetailCount();
+                int maxCount = props.getLimit().getMaxSqlCount();
+                int maxDetailCount = props.getLimit().getMaxSqlDetailCount();
                 
                 boolean isFull = ctx.isFull(maxCount);
 
@@ -95,8 +113,8 @@ public class SqlTraceInterceptor implements Interceptor {
                     String sqlParam = null;
 
                     if (includeDetail) {
-                        int maxSqlLen = properties.getLimit().getMaxSqlLength();
-                        int maxParamLen = properties.getLimit().getMaxSqlParamLength();
+                        int maxSqlLen = props.getLimit().getMaxSqlLength();
+                        int maxParamLen = props.getLimit().getMaxSqlParamLength();
 
                         sql = SQLUtil.buildSql(ms, param, maxSqlLen);
                         sqlParam = extractSqlParam(ms, param, maxParamLen);

@@ -13,4 +13,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
         matchIfMissing = true
 )
 public class LoggingCoreAutoConfiguration {
+
+    public LoggingCoreAutoConfiguration(LoggingProperties properties) {
+        LoggingPropertiesHolder.setProperties(properties);
+    }
 }
