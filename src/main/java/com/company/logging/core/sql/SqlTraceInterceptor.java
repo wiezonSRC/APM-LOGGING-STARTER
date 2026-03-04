@@ -107,10 +107,10 @@ public class SqlTraceInterceptor implements Interceptor {
 
             SqlTraceContext ctx = SqlTraceContextHolder.get();
 
-            if(ctx != null){
+            if(ctx != null) {
                 int maxCount = props.getLimit().getMaxSqlCount();
                 int maxDetailCount = props.getLimit().getMaxSqlDetailCount();
-                
+
                 boolean isFull = ctx.isFull(maxCount);
 
                 // 에러 발생 시에는 꽉 찼더라도 공간을 만들어서 저장함
@@ -124,7 +124,7 @@ public class SqlTraceInterceptor implements Interceptor {
                 } else {
                     // 상세 정보를 남길 것인지 결정 (에러이거나, 상세 개수 제한 내인 경우)
                     boolean includeDetail = isError || !ctx.isDetailFull(maxDetailCount);
-                    
+
                     String sql = null;
                     String sqlParam = null;
 
@@ -138,6 +138,8 @@ public class SqlTraceInterceptor implements Interceptor {
 
                     ctx.add(sqlId, sql, sqlParam, elapsed, isError, includeDetail);
                 }
+            }else{
+                System.out.println("\n\n\n\n\n context null!! \n\n\n\n\n");
             }
         }
 
