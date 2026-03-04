@@ -2,6 +2,7 @@ package com.company.logging.core.sql;
 
 import com.company.logging.core.config.LoggingProperties;
 import com.company.logging.core.support.sql.SQLUtil;
+import org.apache.ibatis.cache.CacheKey;
 import org.apache.ibatis.executor.CachingExecutor;
 import org.apache.ibatis.executor.Executor;
 import org.apache.ibatis.mapping.BoundSql;
@@ -39,6 +40,18 @@ import com.company.logging.core.config.LoggingPropertiesHolder;
                         RowBounds.class,
                         ResultHandler.class
                 }
+        ),
+        @Signature(
+                type = Executor.class,
+                method = "query",
+                args = {
+                        MappedStatement.class,
+                        Object.class,
+                        RowBounds.class,
+                        ResultHandler.class,
+                        CacheKey.class,
+                        BoundSql.class
+                }
         )
 })
 public class SqlTraceInterceptor implements Interceptor {
@@ -62,12 +75,15 @@ public class SqlTraceInterceptor implements Interceptor {
 
     @Override
     public Object intercept(Invocation invocation) throws Throwable {
+        System.out.println("INTERCEPTOR CALLED");
+
         long start = System.currentTimeMillis();
         boolean isError = false;
 
         LoggingProperties props = getProperties();
         if (props == null) {
-            return invocation.proceed();
+            // 기본값 setting
+            props = new LoggingProperties();
         }
 
         if (invocation.getTarget() instanceof CachingExecutor) {
