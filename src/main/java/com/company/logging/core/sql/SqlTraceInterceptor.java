@@ -86,10 +86,11 @@ public class SqlTraceInterceptor implements Interceptor {
             props = new LoggingProperties();
         }
 
-        if (invocation.getTarget() instanceof CachingExecutor) {
-            System.out.println("INVOCATION GETTARGET");
-            return invocation.proceed();
-        }
+        // mms caching 만 기록이 되는 현상 > 확인필요
+//        if (invocation.getTarget() instanceof CachingExecutor) {
+//            System.out.println("INVOCATION GETTARGET");
+//            return invocation.proceed();
+//        }
 
         try{
             System.out.println("INVOCATION PROCEED");
