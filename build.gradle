@@ -27,13 +27,12 @@ dependencyManagement {
 dependencies {
     /* ===== Spring Core ===== */
     api 'org.springframework.boot:spring-boot-autoconfigure'
-    api 'org.springframework:spring-web'
-
+    compileOnly 'org.springframework:spring-web'
     /* ===== Logging ===== */
-    api 'org.slf4j:slf4j-api'
+    compileOnly 'org.slf4j:slf4j-api'
 
     /* ===== JSON ===== */
-    api 'com.fasterxml.jackson.core:jackson-databind'
+    compileOnly 'com.fasterxml.jackson.core:jackson-databind'
 
     /* ===== Optional / Provided by Consumer ===== */
     compileOnly 'org.springframework.boot:spring-boot-starter-web'
