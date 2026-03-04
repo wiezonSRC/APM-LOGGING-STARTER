@@ -57,6 +57,7 @@ import com.company.logging.core.config.LoggingPropertiesHolder;
 public class SqlTraceInterceptor implements Interceptor {
 
     private final LoggingProperties properties;
+    private static final ThreadLocal<Boolean> isLogging = ThreadLocal.withInitial(() -> false);
 
     public SqlTraceInterceptor() {
         this(null);
@@ -75,7 +76,6 @@ public class SqlTraceInterceptor implements Interceptor {
 
     @Override
     public Object intercept(Invocation invocation) throws Throwable {
-        System.out.println("INTERCEPTOR CALLED");
 
         long start = System.currentTimeMillis();
         boolean isError = false;
@@ -86,20 +86,21 @@ public class SqlTraceInterceptor implements Interceptor {
             props = new LoggingProperties();
         }
 
-        // mms caching 만 기록이 되는 현상 > 확인필요
-//        if (invocation.getTarget() instanceof CachingExecutor) {
-//            System.out.println("INVOCATION GETTARGET");
-//            return invocation.proceed();
-//        }
+        if (Boolean.TRUE.equals(isLogging.get())) {
+            return invocation.proceed();
+        }
+
+        isLogging.set(true);
 
         try{
-            System.out.println("INVOCATION PROCEED");
             return invocation.proceed();
         } catch (Throwable t) {
             isError = true;
             throw t;
         } finally {
-            System.out.println("FINALLY");
+
+            isLogging.remove();
+
             long elapsed = System.currentTimeMillis() - start;
 
             Object[] args = invocation.getArgs();
@@ -123,10 +124,8 @@ public class SqlTraceInterceptor implements Interceptor {
                 }
 
                 if (isFull) {
-                    System.out.println("ISFULL CONTEXT");
                     ctx.addOmitted();
                 } else {
-                    System.out.println("WRITE CONTEXT");
                     // 상세 정보를 남길 것인지 결정 (에러이거나, 상세 개수 제한 내인 경우)
                     boolean includeDetail = isError || !ctx.isDetailFull(maxDetailCount);
 
@@ -140,12 +139,9 @@ public class SqlTraceInterceptor implements Interceptor {
                         sql = SQLUtil.buildSql(ms, param, maxSqlLen);
                         sqlParam = extractSqlParam(ms, param, maxParamLen);
                     }
-                    System.out.println("CONTEXT WRITE");
 
                     ctx.add(sqlId, sql, sqlParam, elapsed, isError, includeDetail);
                 }
-            }else{
-                System.out.println("\n\n\n\n\n context null!! \n\n\n\n\n");
             }
         }
 
