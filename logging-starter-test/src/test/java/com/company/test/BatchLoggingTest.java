@@ -34,6 +34,29 @@ class BatchLoggingTest {
     @Autowired
     private Job partitionedJob;
 
+    @Autowired
+    private Job asyncChunkJob;
+
+    @Test
+    @DisplayName("Batch 비동기 Chunk SQL 로깅 테스트")
+    void testAsyncChunkLogging(CapturedOutput output) throws Exception {
+        JobParameters params = new JobParametersBuilder()
+                .addLong("time", System.currentTimeMillis())
+                .toJobParameters();
+
+        jobLauncher.run(asyncChunkJob, params);
+
+        String out = output.getOut();
+        
+        // 1. Job/Step 로그 확인
+        assertThat(out).contains("job_name=asyncChunkJob");
+        assertThat(out).contains("step_name=asyncChunkStep");
+
+        // 2. SQL 로그 확인 (비동기 시 Decorator가 없으면 누락됨)
+        assertThat(out).withFailMessage("SQL log should be present even in async execution!")
+                       .contains("[SQL]");
+    }
+
     @Test
     @DisplayName("Batch Job/Step 추적 테스트")
     void testBatchLogging(CapturedOutput output) throws Exception {

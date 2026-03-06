@@ -56,6 +56,42 @@ public class TestBatchConfig {
     }
 
     @Bean
+    public Job asyncChunkJob(JobRepository jobRepository, Step asyncChunkStep) {
+        return new JobBuilder("asyncChunkJob", jobRepository)
+                .listener(loggingBatchListener)
+                .start(asyncChunkStep)
+                .build();
+    }
+
+    @Bean
+    public Step asyncChunkStep(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
+        SimpleAsyncTaskExecutor executor = new SimpleAsyncTaskExecutor();
+        executor.setTaskDecorator(new com.company.logging.batch.support.LoggingTaskDecorator());
+        
+        return new StepBuilder("asyncChunkStep", jobRepository)
+                .listener(loggingBatchListener)
+                .<String, String>chunk(1, transactionManager)
+                .reader(new org.springframework.batch.item.ItemReader<String>() {
+                    private boolean read = false;
+                    @Override
+                    public String read() {
+                        if (!read) {
+                            read = true;
+                            return "data";
+                        }
+                        return null;
+                    }
+                })
+                .processor(item -> {
+                    testMapper.selectOne();
+                    return item;
+                })
+                .writer(items -> {})
+                .taskExecutor(executor)
+                .build();
+    }
+
+    @Bean
     public Step masterStep(JobRepository jobRepository, Step workerStep) {
         return new StepBuilder("masterStep", jobRepository)
                 .partitioner(workerStep.getName(), partitioner())
