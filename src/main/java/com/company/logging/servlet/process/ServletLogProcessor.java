@@ -3,8 +3,10 @@ package com.company.logging.servlet.process;
 import com.company.logging.core.config.LoggingProperties;
 import com.company.logging.core.enums.LogMarker;
 import com.company.logging.core.enums.TraceLevel;
+import com.company.logging.core.metrics.MetricsHolder;
 import com.company.logging.core.process.AbstractLogProcessor;
 import com.company.logging.core.support.util.CommonUtil;
+import com.company.logging.core.support.util.SensitiveDataMasker;
 import com.company.logging.servlet.context.LogApiContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -67,8 +69,10 @@ public class ServletLogProcessor extends AbstractLogProcessor<LogApiContext> {
 
         if (shouldLogBody || isError) {
             int maxBodyLen = properties.getLimit().getMaxBodyLength();
-            String reqBody = CommonUtil.truncate(ctx.getRequestBody(), maxBodyLen);
-            String resBody = CommonUtil.truncate(ctx.getResponseBody(), maxBodyLen);
+
+            // 로그 출력 직전에 민감정보 마스킹 적용 — 비즈니스 로직의 원본 데이터에는 영향 없음
+            String reqBody = SensitiveDataMasker.mask(CommonUtil.truncate(ctx.getRequestBody(), maxBodyLen));
+            String resBody = SensitiveDataMasker.mask(CommonUtil.truncate(ctx.getResponseBody(), maxBodyLen));
             
             LogMarker marker = isError ? LogMarker.EXCEPTION : LogMarker.API_TRACE;
 
@@ -82,6 +86,8 @@ public class ServletLogProcessor extends AbstractLogProcessor<LogApiContext> {
                     resBody
             );
         }
+
+        MetricsHolder.recordApi(ctx.getMethod(), ctx.getUri(), ctx.getElapsedMs(), isError);
 
         logSqlDetails(traceId, spanId, level, isError);
         logException(ctx, traceId, spanId);

@@ -1,7 +1,13 @@
 package com.company.logging.core.sql;
 
 import com.company.logging.core.config.LoggingProperties;
+import com.company.logging.core.context.TraceContextHolder;
+import com.company.logging.core.enums.LogMarker;
+import com.company.logging.core.metrics.MetricsHolder;
 import com.company.logging.core.support.sql.SQLUtil;
+import com.company.logging.core.support.util.SensitiveDataMasker;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.ibatis.cache.CacheKey;
 import org.apache.ibatis.executor.CachingExecutor;
 import org.apache.ibatis.executor.Executor;
@@ -56,8 +62,12 @@ import com.company.logging.core.config.LoggingPropertiesHolder;
 })
 public class SqlTraceInterceptor implements Interceptor {
 
+    private static final Logger logger = LoggerFactory.getLogger("Log");
+
     private final LoggingProperties properties;
-    private static final ThreadLocal<Boolean> isLogging = ThreadLocal.withInitial(() -> false);
+
+    // CachingExecutor → SimpleExecutor 재진입 방지용 플래그
+    private static final ThreadLocal<Boolean> IS_LOGGING = ThreadLocal.withInitial(() -> false);
 
     public SqlTraceInterceptor() {
         this(null);
@@ -71,6 +81,7 @@ public class SqlTraceInterceptor implements Interceptor {
         if (this.properties != null) {
             return this.properties;
         }
+
         return LoggingPropertiesHolder.getProperties();
     }
 
@@ -81,26 +92,23 @@ public class SqlTraceInterceptor implements Interceptor {
         boolean isError = false;
 
         LoggingProperties props = getProperties();
+
         if (props == null) {
-            // 기본값 setting
             props = new LoggingProperties();
         }
 
-        if (Boolean.TRUE.equals(isLogging.get())) {
+        if (Boolean.TRUE.equals(IS_LOGGING.get())) {
             return invocation.proceed();
         }
 
-        isLogging.set(true);
+        IS_LOGGING.set(true);
 
-        try{
+        try {
             return invocation.proceed();
         } catch (Throwable t) {
             isError = true;
             throw t;
         } finally {
-
-            isLogging.remove();
-
             long elapsed = System.currentTimeMillis() - start;
 
             Object[] args = invocation.getArgs();
@@ -108,10 +116,9 @@ public class SqlTraceInterceptor implements Interceptor {
             Object param = args.length > 1 ? args[1] : null;
             String sqlId = ms.getId();
 
-
             SqlTraceContext ctx = SqlTraceContextHolder.get();
 
-            if(ctx != null) {
+            if (ctx != null) {
                 int maxCount = props.getLimit().getMaxSqlCount();
                 int maxDetailCount = props.getLimit().getMaxSqlDetailCount();
 
@@ -136,38 +143,66 @@ public class SqlTraceInterceptor implements Interceptor {
                         int maxSqlLen = props.getLimit().getMaxSqlLength();
                         int maxParamLen = props.getLimit().getMaxSqlParamLength();
 
-                        sql = SQLUtil.buildSql(ms, param, maxSqlLen);
-                        sqlParam = extractSqlParam(ms, param, maxParamLen);
+                        // getBoundSql()을 한 번만 호출하여 sql·param 추출에 재사용
+                        BoundSql boundSql = ms.getBoundSql(param);
+
+                        sql = SQLUtil.buildSql(boundSql, param, ms.getConfiguration(), maxSqlLen);
+                        sqlParam = extractSqlParam(boundSql, ms.getConfiguration(), param, maxParamLen);
                     }
 
                     ctx.add(sqlId, sql, sqlParam, elapsed, isError, includeDetail);
                 }
             }
-        }
 
+            // SQL 실행 이력을 Breadcrumb에 기록 — 에러 발생 시 원인 추적 경로 제공
+            TraceContextHolder.addBreadcrumb(
+                isError ? "SQL_ERROR" : "SQL",
+                sqlId + " " + elapsed + "ms"
+            );
+
+            // SQL 메트릭 기록 (MetricsHolder가 없으면 무시)
+            boolean isSlow = elapsed >= props.getSlow().getQuery().getMs();
+            MetricsHolder.recordSql(sqlId, elapsed, isError, isSlow);
+
+            // N+1 감지: 동일 Mapper가 임계값에 딱 도달하는 시점에 한 번만 경고
+            if (ctx != null) {
+                int callCount = ctx.incrementCallCount(sqlId);
+                int threshold = props.getLimit().getN1DetectionThreshold();
+
+                if (callCount == threshold) {
+                    logger.warn(
+                        LogMarker.N1_QUERY.marker(),
+                        "trace_id={} sql_id={} call_count={} possible N+1 detected — consider batch fetch or IN clause",
+                        TraceContextHolder.traceId(), sqlId, callCount
+                    );
+                }
+            }
+
+            // 재진입 보호 플래그는 finally 블록 내 모든 처리가 끝난 뒤 해제
+            IS_LOGGING.remove();
+        }
     }
 
     /**
      * SQL 파라미터를 문자열로 추출합니다.
+     * 이미 생성된 BoundSql을 받아 getBoundSql() 이중 호출을 방지합니다.
      */
-    private String extractSqlParam(MappedStatement ms, Object param, int maxLength) {
-        if(param == null) return null;
-
-        BoundSql boundSql = ms.getBoundSql(param);
-        List<ParameterMapping> mappings = boundSql.getParameterMappings();
-
-        if(mappings == null || mappings.isEmpty()){
+    private String extractSqlParam(BoundSql boundSql, Configuration configuration, Object param, int maxLength) {
+        if (param == null) {
             return null;
         }
 
-        Configuration configuration = ms.getConfiguration();
+        List<ParameterMapping> mappings = boundSql.getParameterMappings();
+
+        if (mappings == null || mappings.isEmpty()) {
+            return null;
+        }
+
         MetaObject metaObject = configuration.newMetaObject(param);
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("{");
-
+        StringBuilder sb = new StringBuilder("{");
         boolean first = true;
-        for(ParameterMapping pm : mappings){
+
+        for (ParameterMapping pm : mappings) {
             if (sb.length() >= maxLength) {
                 sb.append("...(TRUNCATED)");
                 break;
@@ -176,15 +211,18 @@ public class SqlTraceInterceptor implements Interceptor {
             String prop = pm.getProperty();
             Object value;
 
-            if(boundSql.hasAdditionalParameter(prop)){
+            if (boundSql.hasAdditionalParameter(prop)) {
                 value = boundSql.getAdditionalParameter(prop);
-            }else if(metaObject.hasGetter(prop)){
+            } else if (metaObject.hasGetter(prop)) {
                 value = metaObject.getValue(prop);
-            }else{
+            } else {
                 value = null;
             }
 
-            if(!first) sb.append(", ");
+            if (!first) {
+                sb.append(", ");
+            }
+
             sb.append(prop).append("=").append(formatValue(value));
             first = false;
         }
@@ -196,17 +234,20 @@ public class SqlTraceInterceptor implements Interceptor {
 
     /**
      * 값을 로그에 적합한 문자열 형식으로 변환합니다.
+     * String 값은 카드번호·주민등록번호 등 민감정보 마스킹 후 출력합니다.
      */
     private String formatValue(Object value) {
-        if(value == null) return "null";
-
-        if(value instanceof  String s){
-            return "'" + s + "'";
+        if (value == null) {
+            return "null";
         }
-        if(value instanceof java.util.Date d){
+
+        if (value instanceof String s) {
+            return "'" + SensitiveDataMasker.mask(s) + "'";
+        }
+
+        if (value instanceof java.util.Date d) {
             return "'" + d + "'";
         }
-
 
         return String.valueOf(value);
     }
