@@ -13,6 +13,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.util.AttributeKey;
 import org.springframework.lang.NonNull;
+import com.company.logging.core.support.util.SamplingDecider;
 import com.company.logging.core.support.util.TraceIdUtil;
 
 /**
@@ -68,14 +69,7 @@ public class NettyTraceDuplexHandler extends ChannelDuplexHandler {
             spanId = TraceIdUtil.generateSpanId();
 
             // 샘플링 결정
-            forceTrace = false;
-            com.company.logging.core.enums.TraceLevel level = properties.getTrace().getLevel();
-            if (level == com.company.logging.core.enums.TraceLevel.PROD) {
-                double sampleRate = properties.getCapture().getSampleRate();
-                if (sampleRate > 0 && Math.random() < sampleRate) {
-                    forceTrace = true;
-                }
-            }
+            forceTrace = SamplingDecider.shouldForceTrace(properties, false);
 
             ctx.channel().attr(TRACE_ID_KEY).set(traceId);
             ctx.channel().attr(SPAN_ID_KEY).set(spanId);
@@ -132,7 +126,14 @@ public class NettyTraceDuplexHandler extends ChannelDuplexHandler {
             }
         });
 
-        super.write(ctx, msg, promise);
+        try {
+            super.write(ctx, msg, promise);
+        } catch (Exception ex) {
+            // super.write()가 동기적으로 던지면 promise listener가 발화하지 않아 컨텍스트가 누수됨
+            logNetty(ctx, ex);
+            clearContext(ctx);
+            throw ex;
+        }
     }
 
     @Override
@@ -213,7 +214,7 @@ public class NettyTraceDuplexHandler extends ChannelDuplexHandler {
                     .sqlTotalElapsed(sqlCtx.getTotalElapsed());
         }
 
-        logProcessor.logApi(builder.build());
+        logProcessor.process(builder.build());
     }
 
     private void clearContext(ChannelHandlerContext ctx) {
