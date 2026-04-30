@@ -1,9 +1,15 @@
 package com.company.logging.servlet.filter;
 
+import com.company.logging.core.async.AsyncLogEventQueue;
 import com.company.logging.core.config.LoggingProperties;
-import com.company.logging.core.sql.SqlTraceContextHolder;
 import com.company.logging.core.context.TraceContextHolder;
 import com.company.logging.core.enums.TraceLevel;
+import com.company.logging.core.error.BreadcrumbEvent;
+import com.company.logging.core.sql.SqlTraceContext;
+import com.company.logging.core.sql.SqlTraceContextHolder;
+import com.company.logging.core.support.util.SamplingDecider;
+import com.company.logging.core.support.util.TraceIdUtil;
+import com.company.logging.servlet.context.LogApiContext;
 import com.company.logging.servlet.process.ServletLogProcessor;
 import com.company.logging.servlet.wrapper.RequestWrapper;
 import com.company.logging.servlet.wrapper.ResponseWrapper;
@@ -13,12 +19,11 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.MDC;
+import org.springframework.lang.Nullable;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import com.company.logging.core.support.util.TraceIdUtil;
-
-import com.company.logging.servlet.context.LogApiContext;
+import java.util.List;
 
 /**
  * HTTP 요청과 응답, 그리고 관련된 SQL 추적 정보를 로깅하는 필터입니다.
@@ -28,9 +33,17 @@ public class LoggingFilter extends OncePerRequestFilter {
     private final LoggingProperties properties;
     private final ServletLogProcessor logProcessor;
 
+    @Nullable
+    private final AsyncLogEventQueue asyncQueue;
+
     public LoggingFilter(LoggingProperties properties) {
+        this(properties, null);
+    }
+
+    public LoggingFilter(LoggingProperties properties, @Nullable AsyncLogEventQueue asyncQueue) {
         this.properties   = properties;
         this.logProcessor = new ServletLogProcessor(properties);
+        this.asyncQueue   = asyncQueue;
     }
 
     @Override
@@ -57,14 +70,9 @@ public class LoggingFilter extends OncePerRequestFilter {
 
         // 헤더나 파라미터를 통한 강제 추적 여부 확인
         boolean forceTrace = "true".equalsIgnoreCase(request.getHeader("X-Debug-Trace")) || "true".equalsIgnoreCase(request.getParameter("trace"));
-        
+
         // 샘플링 여부 결정
-        if (!forceTrace && level == TraceLevel.PROD) {
-            double sampleRate = properties.getCapture().getSampleRate();
-            if (sampleRate > 0 && Math.random() < sampleRate) {
-                forceTrace = true; // 샘플링된 요청은 TRACE 레벨로 처리되도록 함 (또는 별도 플래그)
-            }
-        }
+        forceTrace = SamplingDecider.shouldForceTrace(properties, forceTrace);
 
         TraceContextHolder.init(traceId, spanId, level, forceTrace);
         SqlTraceContextHolder.init();
@@ -74,7 +82,6 @@ public class LoggingFilter extends OncePerRequestFilter {
         Exception exception = null;
         RequestWrapper req = null;
         ResponseWrapper res = null;
-
 
         try {
             // 파일 업로드 등 바이너리 요청이 아닐 경우에만 ResponseWrapper 사용 (메모리 이슈 방지)
@@ -93,8 +100,12 @@ public class LoggingFilter extends OncePerRequestFilter {
 
             long elapsedMs = (System.nanoTime() - startNano) / 1_000_000;
 
-            // 통합 로깅 호출 (바이너리 요청이라도 메타데이터는 로깅)
-            logUnified(request, req, res, elapsedMs, exception);
+            // 에러가 있거나 asyncQueue가 없으면 동기 처리
+            if (asyncQueue == null || exception != null) {
+                logUnified(request, req, res, elapsedMs, exception);
+            } else {
+                submitAsync(request, req, res, elapsedMs, traceId, spanId, level, forceTrace);
+            }
 
             // 컨텍스트 정리
             SqlTraceContextHolder.clear();
@@ -105,20 +116,49 @@ public class LoggingFilter extends OncePerRequestFilter {
     }
 
     /**
+     * SQL 컨텍스트와 브레드크럼 스냅샷을 캡처한 뒤 워커 스레드로 위임합니다.
+     * 스냅샷 캡처는 반드시 컨텍스트 clear() 이전에 수행해야 합니다.
+     */
+    private void submitAsync(HttpServletRequest originalReq, RequestWrapper wrappedReq, ResponseWrapper wrappedRes,
+                             long elapsedMs, String traceId, String spanId,
+                             TraceLevel capturedLevel, boolean capturedForceTrace) {
+
+        SqlTraceContext sqlSnapshot       = SqlTraceContextHolder.get();
+        List<BreadcrumbEvent> breadcrumbs = TraceContextHolder.getBreadcrumbs();
+        LogApiContext ctx                 = buildApiContext(originalReq, wrappedReq, wrappedRes, elapsedMs, null);
+
+        asyncQueue.offer(() -> {
+            try {
+                TraceContextHolder.restore(traceId, spanId, capturedLevel, capturedForceTrace, breadcrumbs);
+                SqlTraceContextHolder.set(sqlSnapshot);
+                logProcessor.process(ctx);
+            } finally {
+                SqlTraceContextHolder.clear();
+                TraceContextHolder.clear();
+            }
+        });
+    }
+
+    /**
      * 통합 로깅: 계층별로 정보의 상세도를 조절하여 중복 없이 출력합니다.
      */
     private void logUnified(HttpServletRequest originalReq, RequestWrapper wrappedReq, ResponseWrapper wrappedRes, long elapsedMs, Exception ex) {
-        String responseBody = (wrappedRes != null && !isBinaryResponse(wrappedRes) && isTextContent(wrappedRes.getContentType())) ? wrappedRes.getBodyAsString() : "[BINARY DATA/EMPTY]";
-        String status = (wrappedRes != null) ? String.valueOf(wrappedRes.getStatus()) : "-";
-        
-        // RequestWrapper가 없으면 originalReq에서 정보를 추출 (바디는 제외)
-        String uri = (wrappedReq != null) ? wrappedReq.getRequestURI() : originalReq.getRequestURI();
-        String method = (wrappedReq != null) ? wrappedReq.getMethod() : originalReq.getMethod();
-        String interfaceId = (wrappedReq != null) ? wrappedReq.getHeader("IFID") : originalReq.getHeader("IFID");
-        String requestParam = (wrappedReq != null) ? wrappedReq.getParameterMap().toString() : originalReq.getParameterMap().toString();
-        String requestBody = (wrappedReq != null) ? wrappedReq.getBody() : "[BINARY DATA/NOT WRAPPED]";
+        logProcessor.process(buildApiContext(originalReq, wrappedReq, wrappedRes, elapsedMs, ex));
+    }
 
-        LogApiContext apiContext = new LogApiContext.Builder()
+    private LogApiContext buildApiContext(HttpServletRequest originalReq, RequestWrapper wrappedReq,
+                                          ResponseWrapper wrappedRes, long elapsedMs, Exception ex) {
+        String responseBody = (wrappedRes != null && !isBinaryResponse(wrappedRes) && isTextContent(wrappedRes.getContentType())) ? wrappedRes.getBodyAsString() : "[BINARY DATA/EMPTY]";
+        String status       = (wrappedRes != null) ? String.valueOf(wrappedRes.getStatus()) : "-";
+
+        // RequestWrapper가 없으면 originalReq에서 정보를 추출 (바디는 제외)
+        String uri          = (wrappedReq != null) ? wrappedReq.getRequestURI()                  : originalReq.getRequestURI();
+        String method       = (wrappedReq != null) ? wrappedReq.getMethod()                      : originalReq.getMethod();
+        String interfaceId  = (wrappedReq != null) ? wrappedReq.getHeader("IFID")               : originalReq.getHeader("IFID");
+        String requestParam = (wrappedReq != null) ? wrappedReq.getParameterMap().toString()     : originalReq.getParameterMap().toString();
+        String requestBody  = (wrappedReq != null) ? wrappedReq.getBody()                        : "[BINARY DATA/NOT WRAPPED]";
+
+        return new LogApiContext.Builder()
                 .traceId(MDC.get("traceId"))
                 .spanId(MDC.get("spanId"))
                 .interfaceId(interfaceId)
@@ -131,8 +171,6 @@ public class LoggingFilter extends OncePerRequestFilter {
                 .responseBody(responseBody)
                 .ex(ex)
                 .build();
-
-        logProcessor.logApi(apiContext);
     }
 
     /**
@@ -178,6 +216,4 @@ public class LoggingFilter extends OncePerRequestFilter {
                         || contentType.contains("+json")
         );
     }
-
-
 }

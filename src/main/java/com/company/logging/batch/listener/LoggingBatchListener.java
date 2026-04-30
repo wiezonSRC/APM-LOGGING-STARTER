@@ -71,7 +71,7 @@ public class LoggingBatchListener implements JobExecutionListener, StepExecution
                     .ex(ex)
                     .build();
 
-            logProcessor.logApi(batchContext);
+            logProcessor.process(batchContext);
         } finally {
             clearContext();
         }
@@ -120,7 +120,7 @@ public class LoggingBatchListener implements JobExecutionListener, StepExecution
                 .ex(ex)
                 .build();
 
-        logProcessor.logApi(batchContext);
+        logProcessor.process(batchContext);
 
         // Step 종료 후 SQL 컨텍스트 정리 (Job 레벨 컨텍스트 복원 대신 각 Step 독립적 관리)
         SqlTraceContextHolder.clear();
