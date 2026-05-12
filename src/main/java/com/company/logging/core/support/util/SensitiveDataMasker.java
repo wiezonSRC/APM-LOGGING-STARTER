@@ -42,4 +42,16 @@ public final class SensitiveDataMasker {
 
         return result;
     }
+
+    /**
+     * enabled 플래그에 따라 조건부로 마스킹을 적용합니다.
+     * log.security.masking-enabled=false 환경(개발·로컬)에서 원문 확인이 필요할 때 사용합니다.
+     *
+     * @param value   마스킹할 원본 문자열
+     * @param enabled true 이면 mask() 적용, false 이면 원본 반환
+     * @return 마스킹 결과 또는 원본 문자열
+     */
+    public static String maskIfEnabled(String value, boolean enabled) {
+        return enabled ? mask(value) : value;
+    }
 }

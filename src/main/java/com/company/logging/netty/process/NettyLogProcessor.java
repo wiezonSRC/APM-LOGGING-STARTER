@@ -5,6 +5,7 @@ import com.company.logging.core.enums.LogMarker;
 import com.company.logging.core.enums.TraceLevel;
 import com.company.logging.core.process.AbstractLogProcessor;
 import com.company.logging.core.support.util.CommonUtil;
+import com.company.logging.core.support.util.SensitiveDataMasker;
 import com.company.logging.netty.context.LogNettyContext;
 
 public class NettyLogProcessor extends AbstractLogProcessor<LogNettyContext> {
@@ -49,9 +50,14 @@ public class NettyLogProcessor extends AbstractLogProcessor<LogNettyContext> {
 
         if (shouldLogBody || isError) {
             int maxBodyLen = properties.getLimit().getMaxBodyLength();
-            String reqData = CommonUtil.truncate(ctx.getRequestData(), maxBodyLen);
-            String resData = CommonUtil.truncate(ctx.getResponseData(), maxBodyLen);
-            
+
+            // log.security.masking-enabled + mask-body 설정으로 마스킹 여부를 제어합니다.
+            boolean maskBody = properties.getSecurity().isMaskingEnabled()
+                    && properties.getSecurity().isMaskBody();
+
+            String reqData = SensitiveDataMasker.maskIfEnabled(CommonUtil.truncate(ctx.getRequestData(), maxBodyLen), maskBody);
+            String resData = SensitiveDataMasker.maskIfEnabled(CommonUtil.truncate(ctx.getResponseData(), maxBodyLen), maskBody);
+
             LogMarker marker = isError ? LogMarker.EXCEPTION : LogMarker.API_TRACE;
 
             logger.info(

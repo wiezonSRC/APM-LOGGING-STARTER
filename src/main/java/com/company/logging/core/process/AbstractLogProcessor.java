@@ -11,6 +11,7 @@ import com.company.logging.core.error.ErrorClassifier;
 import com.company.logging.core.error.ErrorFingerprinter;
 import com.company.logging.core.sql.SqlTraceContextHolder;
 import com.company.logging.core.support.util.LogMessageBuilder;
+import com.company.logging.core.support.util.SensitiveDataMasker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -110,6 +111,12 @@ public abstract class AbstractLogProcessor<T extends LogContext> {
                 String sqlText = (sql.getSql() != null) ? sql.getSql() : "[SQL TEXT OMITTED BY POLICY]";
                 // TRACE 레벨이거나 상세 정보가 있을 때만 파라미터를 로그에 포함
                 String sqlParam = (level == TraceLevel.TRACE) ? sql.getSqlParam() : null;
+
+                // SQL 텍스트·파라미터 마스킹 (log.security.masking-enabled + mask-sql-param 설정 기반)
+                boolean maskSql = properties.getSecurity().isMaskingEnabled()
+                        && properties.getSecurity().isMaskSqlParam();
+                sqlText = SensitiveDataMasker.maskIfEnabled(sqlText, maskSql);
+                sqlParam = SensitiveDataMasker.maskIfEnabled(sqlParam, maskSql);
 
                 logger.info(
                         marker.marker(),

@@ -70,10 +70,15 @@ public class ServletLogProcessor extends AbstractLogProcessor<LogApiContext> {
         if (shouldLogBody || isError) {
             int maxBodyLen = properties.getLimit().getMaxBodyLength();
 
-            // 로그 출력 직전에 민감정보 마스킹 적용 — 비즈니스 로직의 원본 데이터에는 영향 없음
-            String reqBody = SensitiveDataMasker.mask(CommonUtil.truncate(ctx.getRequestBody(), maxBodyLen));
-            String resBody = SensitiveDataMasker.mask(CommonUtil.truncate(ctx.getResponseBody(), maxBodyLen));
-            
+            // log.security.masking-enabled + mask-body 설정으로 마스킹 여부를 제어합니다.
+            // 운영 환경: true(기본) / 개발·로컬 환경: false 로 끄면 원문 확인 가능
+            boolean maskBody = properties.getSecurity().isMaskingEnabled()
+                    && properties.getSecurity().isMaskBody();
+
+            String reqBody  = SensitiveDataMasker.maskIfEnabled(CommonUtil.truncate(ctx.getRequestBody(), maxBodyLen), maskBody);
+            String resBody  = SensitiveDataMasker.maskIfEnabled(CommonUtil.truncate(ctx.getResponseBody(), maxBodyLen), maskBody);
+            String reqParam = SensitiveDataMasker.maskIfEnabled(ctx.getRequestParam(), maskBody);
+
             LogMarker marker = isError ? LogMarker.EXCEPTION : LogMarker.API_TRACE;
 
             logger.info(
@@ -81,7 +86,7 @@ public class ServletLogProcessor extends AbstractLogProcessor<LogApiContext> {
                     "trace_id={} span_id={} params={} request={} response={}",
                     traceId,
                     spanId,
-                    ctx.getRequestParam(),
+                    reqParam,
                     reqBody,
                     resBody
             );
