@@ -1,8 +1,11 @@
 package com.company.logging.core.sql;
 
 import com.company.logging.core.context.LogSqlContext;
+
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 하나의 요청 내에서 실행된 SQL 추적 정보들을 모아두는 컨텍스트입니다.
@@ -11,6 +14,7 @@ import java.util.List;
 public class SqlTraceContext {
 
     private final List<LogSqlContext> traces = new ArrayList<>();
+    private final Map<String, Integer> sqlIdCallCount = new HashMap<>();
     private long totalElapsed = 0;
     private int omittedCount = 0;
 
@@ -87,5 +91,13 @@ public class SqlTraceContext {
 
     public boolean isFull(int maxCount) {
         return traces.size() >= maxCount;
+    }
+
+    /**
+     * 특정 Mapper ID의 호출 횟수를 1 증가시키고 증가된 값을 반환합니다.
+     * N+1 감지를 위해 SqlTraceInterceptor에서 사용합니다.
+     */
+    public int incrementCallCount(String sqlId) {
+        return sqlIdCallCount.merge(sqlId, 1, Integer::sum);
     }
 }

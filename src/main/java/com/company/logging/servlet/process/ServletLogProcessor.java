@@ -5,6 +5,7 @@ import com.company.logging.core.enums.LogMarker;
 import com.company.logging.core.enums.TraceLevel;
 import com.company.logging.core.process.AbstractLogProcessor;
 import com.company.logging.core.support.util.CommonUtil;
+import com.company.logging.core.support.util.SensitiveDataMasker;
 import com.company.logging.servlet.context.LogApiContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -67,9 +68,16 @@ public class ServletLogProcessor extends AbstractLogProcessor<LogApiContext> {
 
         if (shouldLogBody || isError) {
             int maxBodyLen = properties.getLimit().getMaxBodyLength();
-            String reqBody = CommonUtil.truncate(ctx.getRequestBody(), maxBodyLen);
-            String resBody = CommonUtil.truncate(ctx.getResponseBody(), maxBodyLen);
-            
+
+            // log.security.masking-enabled + mask-body 설정으로 마스킹 여부를 제어합니다.
+            // 운영 환경: true(기본) / 개발·로컬 환경: false 로 끄면 원문 확인 가능
+            boolean maskBody = properties.getSecurity().isMaskingEnabled()
+                    && properties.getSecurity().isMaskBody();
+
+            String reqBody  = SensitiveDataMasker.maskIfEnabled(CommonUtil.truncate(ctx.getRequestBody(), maxBodyLen), maskBody);
+            String resBody  = SensitiveDataMasker.maskIfEnabled(CommonUtil.truncate(ctx.getResponseBody(), maxBodyLen), maskBody);
+            String reqParam = SensitiveDataMasker.maskIfEnabled(ctx.getRequestParam(), maskBody);
+
             LogMarker marker = isError ? LogMarker.EXCEPTION : LogMarker.API_TRACE;
 
             logger.info(
@@ -77,7 +85,7 @@ public class ServletLogProcessor extends AbstractLogProcessor<LogApiContext> {
                     "trace_id={} span_id={} params={} request={} response={}",
                     traceId,
                     spanId,
-                    ctx.getRequestParam(),
+                    reqParam,
                     reqBody,
                     resBody
             );

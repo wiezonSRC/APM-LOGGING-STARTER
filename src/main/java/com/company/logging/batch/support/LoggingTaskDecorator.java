@@ -1,6 +1,5 @@
 package com.company.logging.batch.support;
 
-import com.company.logging.batch.process.BatchLogProcessor;
 import com.company.logging.core.config.LoggingProperties;
 import com.company.logging.core.config.LoggingPropertiesHolder;
 import com.company.logging.core.context.TraceContextHolder;
@@ -17,6 +16,8 @@ import java.util.Map;
  * 자식 스레드만의 독립적인 spanId를 생성하여 SQL 정보를 수집/로깅하기 위한 데코레이터.
  */
 public class LoggingTaskDecorator implements TaskDecorator {
+
+    private volatile BatchLogProcessorAdapter adapter;
 
     @Override
     public Runnable decorate(Runnable runnable) {
@@ -62,12 +63,22 @@ public class LoggingTaskDecorator implements TaskDecorator {
      */
     private void logTaskSql(String traceId, String spanId, TraceLevel level) {
         LoggingProperties props = LoggingPropertiesHolder.getProperties();
-        if (props == null) return;
+        if (props == null) {
+            return;
+        }
 
-        new BatchLogProcessor(props) {
-            public void logDetails(String tId, String sId, TraceLevel l) {
-                super.logSqlDetails(tId, sId, l, false);
+        getAdapter(props).logSqlOnly(traceId, spanId, level);
+    }
+
+    private BatchLogProcessorAdapter getAdapter(LoggingProperties props) {
+        if (adapter == null) {
+            synchronized (this) {
+                if (adapter == null) {
+                    adapter = new BatchLogProcessorAdapter(props);
+                }
             }
-        }.logDetails(traceId, spanId, level);
+        }
+
+        return adapter;
     }
 }

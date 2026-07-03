@@ -5,7 +5,6 @@ import com.company.logging.servlet.filter.LoggingFilter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,9 +25,7 @@ public class LoggingWebAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public FilterRegistrationBean<LoggingFilter> loggingFilterRegistration(
-            LoggingProperties properties
-    ) {
+    public FilterRegistrationBean<LoggingFilter> loggingFilterRegistration(LoggingProperties properties) {
         FilterRegistrationBean<LoggingFilter> bean = new FilterRegistrationBean<>();
         bean.setFilter(new LoggingFilter(properties));
         bean.setOrder(Ordered.HIGHEST_PRECEDENCE + 10);

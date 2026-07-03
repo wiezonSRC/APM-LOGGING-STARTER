@@ -6,10 +6,16 @@ import com.company.logging.core.context.LogSqlContext;
 import com.company.logging.core.context.TraceContextHolder;
 import com.company.logging.core.enums.LogMarker;
 import com.company.logging.core.enums.TraceLevel;
+import com.company.logging.core.error.BreadcrumbEvent;
+import com.company.logging.core.error.ErrorClassifier;
+import com.company.logging.core.error.ErrorFingerprinter;
 import com.company.logging.core.sql.SqlTraceContextHolder;
 import com.company.logging.core.support.util.LogMessageBuilder;
+import com.company.logging.core.support.util.SensitiveDataMasker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.List;
 
 public abstract class AbstractLogProcessor<T extends LogContext> {
     protected final LoggingProperties properties;
@@ -20,7 +26,19 @@ public abstract class AbstractLogProcessor<T extends LogContext> {
         this.properties = properties;
     }
 
-    public abstract void logApi(T ctx);
+    protected abstract void logApi(T ctx);
+
+    /**
+     * 로깅 실패가 비즈니스 요청으로 전파되지 않도록 감싸는 Fail-safe 진입점입니다.
+     * Filter·Listener·Handler에서는 logApi() 대신 이 메서드를 호출해야 합니다.
+     */
+    public final void process(T ctx) {
+        try {
+            logApi(ctx);
+        } catch (Exception ex) {
+            logger.error("[LOGGING_INTERNAL_ERROR] traceId={} cause={}", ctx.getTraceId(), ex.getMessage());
+        }
+    }
 
     /**
      * TraceLevel 계산 공통 로직
@@ -94,6 +112,12 @@ public abstract class AbstractLogProcessor<T extends LogContext> {
                 // TRACE 레벨이거나 상세 정보가 있을 때만 파라미터를 로그에 포함
                 String sqlParam = (level == TraceLevel.TRACE) ? sql.getSqlParam() : null;
 
+                // SQL 텍스트·파라미터 마스킹 (log.security.masking-enabled + mask-sql-param 설정 기반)
+                boolean maskSql = properties.getSecurity().isMaskingEnabled()
+                        && properties.getSecurity().isMaskSqlParam();
+                sqlText = SensitiveDataMasker.maskIfEnabled(sqlText, maskSql);
+                sqlParam = SensitiveDataMasker.maskIfEnabled(sqlParam, maskSql);
+
                 logger.info(
                         marker.marker(),
                         LogMessageBuilder.buildSql(
@@ -117,24 +141,45 @@ public abstract class AbstractLogProcessor<T extends LogContext> {
 
 
     /**
-     * 공통 예외 로그
+     * 공통 예외 로그. ErrorFingerprinter로 버그 지문을 생성하고 Breadcrumb를 함께 출력합니다.
+     * 동일한 errorFingerprint 값 = 동일 버그 → Grafana에서 집계·알림 설정 가능합니다.
      */
     protected void logException(LogContext ctx, String traceId, String spanId) {
+        if (!logger.isInfoEnabled()) {
+            return;
+        }
 
-        if (!logger.isInfoEnabled()) return;
-        if (ctx.getEx() == null) return;
+        if (ctx.getEx() == null) {
+            return;
+        }
+
+        Throwable ex = ctx.getEx();
+        String fingerprint = ErrorFingerprinter.fingerprint(ex);
+        ErrorClassifier.ErrorType errorType = ErrorClassifier.classify(ex);
+        List<BreadcrumbEvent> breadcrumbs = TraceContextHolder.getBreadcrumbs();
+        LogMarker marker = resolveErrorMarker(errorType);
 
         logger.info(
-                LogMarker.EXCEPTION.marker(),
-                LogMessageBuilder.buildException(
-                        LogMarker.EXCEPTION,
+                marker.marker(),
+                LogMessageBuilder.buildError(
                         traceId,
                         spanId,
-                        ctx.getEx(),
+                        fingerprint,
+                        errorType.getLabel(),
+                        breadcrumbs,
+                        ex,
                         properties.getLimit().getMaxStackDepth(),
                         properties.getLimit().getMaxStackLines()
                 )
         );
+    }
+
+    private LogMarker resolveErrorMarker(ErrorClassifier.ErrorType errorType) {
+        return switch (errorType) {
+            case BIZ -> LogMarker.ERROR_BIZ;
+            case EXTERNAL -> LogMarker.ERROR_EXTERNAL;
+            default -> LogMarker.ERROR_SYSTEM;
+        };
     }
 
 }

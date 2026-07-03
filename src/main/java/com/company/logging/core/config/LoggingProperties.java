@@ -14,6 +14,7 @@ public class LoggingProperties {
     private final Slow slow = new Slow();
     private final Limit limit = new Limit();
     private final Capture capture = new Capture();
+    private final Security security = new Security();
 
     /**
      * 추적(Trace) 관련 설정을 담는 내부 클래스입니다.
@@ -76,12 +77,13 @@ public class LoggingProperties {
      */
     public static class Limit {
         private int maxSqlCount = 100;
-        private int maxSqlDetailCount = 10; // 상세 정보를 남길 최대 SQL 개수
+        private int maxSqlDetailCount = 10;     // 상세 정보를 남길 최대 SQL 개수
         private int maxSqlLength = 2000;
         private int maxSqlParamLength = 1000;
         private int maxBodyLength = 2000;
-        private int maxStackDepth = 5;      // Caused by 최대 깊이
-        private int maxStackLines = 3;      // 각 Cause당 라인 수
+        private int maxStackDepth = 5;          // Caused by 최대 깊이
+        private int maxStackLines = 3;          // 각 Cause당 라인 수
+        private int n1DetectionThreshold = 3;   // 동일 Mapper가 이 횟수 이상 호출되면 N+1 경고
 
         public int getMaxSqlCount() {
             return maxSqlCount;
@@ -137,6 +139,14 @@ public class LoggingProperties {
 
         public void setMaxStackLines(int maxStackLines) {
             this.maxStackLines = maxStackLines;
+        }
+
+        public int getN1DetectionThreshold() {
+            return n1DetectionThreshold;
+        }
+
+        public void setN1DetectionThreshold(int n1DetectionThreshold) {
+            this.n1DetectionThreshold = n1DetectionThreshold;
         }
     }
 
@@ -209,4 +219,47 @@ public class LoggingProperties {
     public Capture getCapture() {
         return capture;
     }
+
+    public Security getSecurity() {
+        return security;
+    }
+
+    /**
+     * 민감정보 마스킹 설정입니다.
+     * 운영 환경에서는 기본값(전체 활성화)을 유지하고,
+     * 개발/로컬 환경에서만 비활성화하여 원문 데이터를 확인하세요.
+     */
+    public static class Security {
+        /** 마스킹 전체 on/off. false 로 끄면 아래 세부 설정이 모두 무시됩니다. */
+        private boolean maskingEnabled = true;
+        /** request body, response body, request param 마스킹 여부 */
+        private boolean maskBody = true;
+        /** SQL 파라미터 및 SQL 텍스트 마스킹 여부 */
+        private boolean maskSqlParam = true;
+
+        public boolean isMaskingEnabled() {
+            return maskingEnabled;
+        }
+
+        public void setMaskingEnabled(boolean maskingEnabled) {
+            this.maskingEnabled = maskingEnabled;
+        }
+
+        public boolean isMaskBody() {
+            return maskBody;
+        }
+
+        public void setMaskBody(boolean maskBody) {
+            this.maskBody = maskBody;
+        }
+
+        public boolean isMaskSqlParam() {
+            return maskSqlParam;
+        }
+
+        public void setMaskSqlParam(boolean maskSqlParam) {
+            this.maskSqlParam = maskSqlParam;
+        }
+    }
+
 }

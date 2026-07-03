@@ -23,19 +23,35 @@ public class SQLUtil {
      * @param maxLength 최대 허용 길이
      * @return 파라미터가 치환된 SQL 문자열
      */
-    public static String buildSql(MappedStatement ms, Object param, int maxLength){
+    public static String buildSql(MappedStatement ms, Object param, int maxLength) {
         BoundSql boundSql = ms.getBoundSql(param);
+
+        return buildSql(boundSql, param, ms.getConfiguration(), maxLength);
+    }
+
+    /**
+     * 이미 생성된 BoundSql을 재사용하여 완성된 SQL 문자열을 생성합니다.
+     * getBoundSql() 이중 호출을 방지하기 위해 인터셉터에서 직접 호출하는 용도입니다.
+     *
+     * @param boundSql 이미 생성된 BoundSql
+     * @param param 파라미터 객체 (MetaObject 생성에 필요)
+     * @param configuration MyBatis Configuration
+     * @param maxLength 최대 허용 길이
+     * @return 파라미터가 치환된 SQL 문자열
+     */
+    public static String buildSql(BoundSql boundSql, Object param, Configuration configuration, int maxLength) {
         String sql = boundSql.getSql();
         List<ParameterMapping> mappings = boundSql.getParameterMappings();
 
-        if(mappings == null || mappings.isEmpty()){
+        if (mappings == null || mappings.isEmpty()) {
             if (sql != null && sql.length() > maxLength) {
                 return sql.substring(0, maxLength) + "...(TRUNCATED)";
             }
+
             return sql;
         }
 
-        return replacePlaceholders(sql, mappings, boundSql, ms.getConfiguration(), param, maxLength);
+        return replacePlaceholders(sql, mappings, boundSql, configuration, param, maxLength);
     }
 
 
@@ -104,19 +120,24 @@ public class SQLUtil {
 
     /**
      * 값을 SQL 리터럴 형식으로 변환합니다. (예: 문자열은 따옴표로 감쌈)
+     * 마스킹은 여기서 수행하지 않고, 렌더 시점(AbstractLogProcessor.logSqlDetails)에서
+     * log.security.masking-enabled 플래그에 따라 일괄 적용합니다(이중 마스킹 방지).
+     * 작은따옴표만 SQL 리터럴 escape 목적으로 이스케이프합니다.
      */
     private static String formatValue(Object value) {
-        if(value == null) return "NULL";
+        if (value == null) {
+            return "NULL";
+        }
 
-        if(value instanceof String val){
+        if (value instanceof String val) {
             return "'" + val.replace("'", "''") + "'";
         }
 
-        if(value instanceof LocalDateTime){
+        if (value instanceof LocalDateTime) {
             return "'" + value + "'";
         }
 
-        if(value instanceof Number || value instanceof Boolean ){
+        if (value instanceof Number || value instanceof Boolean) {
             return value.toString();
         }
 

@@ -1,6 +1,9 @@
 package com.company.logging.core.support.util;
 
 import com.company.logging.core.enums.LogMarker;
+import com.company.logging.core.error.BreadcrumbEvent;
+
+import java.util.List;
 
 
 public class LogMessageBuilder {
@@ -73,6 +76,45 @@ public class LogMessageBuilder {
                 spanId,
                 omittedCount
         );
+    }
+
+    /**
+     * 에러 발생 시 fingerprint·errorType·breadcrumbs를 포함한 버그 트래킹 로그를 생성합니다.
+     * Grafana에서 errorFingerprint 필드로 집계하면 동일한 버그를 그룹핑할 수 있습니다.
+     */
+    public static String buildError(String traceId,
+                                    String spanId,
+                                    String fingerprint,
+                                    String errorType,
+                                    List<BreadcrumbEvent> breadcrumbs,
+                                    Throwable ex,
+                                    int maxDepth,
+                                    int maxLines) {
+
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format(
+                "trace_id=%s span_id=%s error_fingerprint=%s error_type=%s",
+                traceId, spanId, fingerprint, errorType
+        ));
+
+        if (breadcrumbs != null && !breadcrumbs.isEmpty()) {
+            sb.append(" breadcrumbs=[");
+
+            for (int i = 0; i < breadcrumbs.size(); i++) {
+                if (i > 0) {
+                    sb.append(", ");
+                }
+                sb.append(breadcrumbs.get(i).toString());
+            }
+
+            sb.append("]");
+        }
+
+        if (ex != null) {
+            sb.append("\n").append(CommonUtil.getStackTrace(ex, maxDepth, maxLines));
+        }
+
+        return sb.toString();
     }
 
     // SQL 정리
