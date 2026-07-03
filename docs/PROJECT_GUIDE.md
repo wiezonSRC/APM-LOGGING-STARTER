@@ -151,7 +151,7 @@ repositories {
     maven { url 'https://jitpack.io' }
 }
 dependencies {
-    implementation 'com.github.wiezonSRC:logging-starter:v1.0.29'
+    implementation 'com.github.wiezonSRC:APM-LOGGING-STARTER:v1.0.29'
 }
 ```
 
@@ -165,11 +165,11 @@ dependencies {
 </repositories>
 <dependency>
   <groupId>com.github.wiezonSRC</groupId>
-  <artifactId>logging-starter</artifactId>
+  <artifactId>APM-LOGGING-STARTER</artifactId>
   <version>v1.0.29</version>
 </dependency>
 ```
-> ⚠️ 좌표의 `wiezonSRC`(조직)와 `logging-starter`(저장소명)는 **GitHub 저장소 경로 기준**입니다. 저장소명을 변경하면 소비 프로젝트의 좌표도 함께 변경해야 합니다.
+> ⚠️ 좌표의 `wiezonSRC`(조직)와 `APM-LOGGING-STARTER`(저장소명)는 **GitHub 저장소 경로 기준**입니다. 내부 Gradle 모듈명(`logging-starter`)과 무관하게 JitPack은 저장소명으로 서빙합니다. 저장소명을 다시 변경하면 소비 프로젝트의 좌표도 함께 변경해야 합니다.
 
 ### 6.2 환경별 적용
 
@@ -216,8 +216,8 @@ git tag v1.0.x
 git push origin v1.0.x
 ```
 
-- 소비 프로젝트는 `com.github.wiezonSRC:logging-starter:v1.0.x` 로 참조합니다.
-- 최초 빌드 상태는 `https://jitpack.io/#wiezonSRC/logging-starter` 에서 확인할 수 있습니다.
+- 소비 프로젝트는 `com.github.wiezonSRC:APM-LOGGING-STARTER:v1.0.x` 로 참조합니다.
+- 최초 빌드 상태는 `https://jitpack.io/#wiezonSRC/APM-LOGGING-STARTER` 에서 확인할 수 있습니다.
 - 태그는 이미 push된 커밋을 가리키므로, **코드 push → 태그 push** 순서를 지키세요.
 
 ---
