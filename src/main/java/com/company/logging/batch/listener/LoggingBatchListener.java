@@ -122,8 +122,10 @@ public class LoggingBatchListener implements JobExecutionListener, StepExecution
 
         logProcessor.process(batchContext);
 
-        // Step 종료 후 SQL 컨텍스트 정리 (Job 레벨 컨텍스트 복원 대신 각 Step 독립적 관리)
+        // Step 종료 후 컨텍스트 정리 (Job 레벨 컨텍스트 복원 대신 각 Step 독립적 관리)
+        // beforeStep()의 TraceContextHolder.init()과 대칭을 맞춰 ThreadLocal 누수를 방지합니다.
         SqlTraceContextHolder.clear();
+        TraceContextHolder.clear();
 
         return stepExecution.getExitStatus();
     }

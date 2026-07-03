@@ -1,11 +1,8 @@
 package com.company.logging.servlet.filter;
 
-import com.company.logging.core.async.AsyncLogEventQueue;
 import com.company.logging.core.config.LoggingProperties;
 import com.company.logging.core.context.TraceContextHolder;
 import com.company.logging.core.enums.TraceLevel;
-import com.company.logging.core.error.BreadcrumbEvent;
-import com.company.logging.core.sql.SqlTraceContext;
 import com.company.logging.core.sql.SqlTraceContextHolder;
 import com.company.logging.core.support.util.SamplingDecider;
 import com.company.logging.core.support.util.TraceIdUtil;
@@ -19,11 +16,9 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.MDC;
-import org.springframework.lang.Nullable;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.List;
 
 /**
  * HTTP 요청과 응답, 그리고 관련된 SQL 추적 정보를 로깅하는 필터입니다.
@@ -33,17 +28,9 @@ public class LoggingFilter extends OncePerRequestFilter {
     private final LoggingProperties properties;
     private final ServletLogProcessor logProcessor;
 
-    @Nullable
-    private final AsyncLogEventQueue asyncQueue;
-
     public LoggingFilter(LoggingProperties properties) {
-        this(properties, null);
-    }
-
-    public LoggingFilter(LoggingProperties properties, @Nullable AsyncLogEventQueue asyncQueue) {
         this.properties   = properties;
         this.logProcessor = new ServletLogProcessor(properties);
-        this.asyncQueue   = asyncQueue;
     }
 
     @Override
@@ -100,12 +87,7 @@ public class LoggingFilter extends OncePerRequestFilter {
 
             long elapsedMs = (System.nanoTime() - startNano) / 1_000_000;
 
-            // 에러가 있거나 asyncQueue가 없으면 동기 처리
-            if (asyncQueue == null || exception != null) {
-                logUnified(request, req, res, elapsedMs, exception);
-            } else {
-                submitAsync(request, req, res, elapsedMs, traceId, spanId, level, forceTrace);
-            }
+            logUnified(request, req, res, elapsedMs, exception);
 
             // 컨텍스트 정리
             SqlTraceContextHolder.clear();
@@ -113,30 +95,6 @@ public class LoggingFilter extends OncePerRequestFilter {
             MDC.remove("traceId");
             MDC.remove("spanId");
         }
-    }
-
-    /**
-     * SQL 컨텍스트와 브레드크럼 스냅샷을 캡처한 뒤 워커 스레드로 위임합니다.
-     * 스냅샷 캡처는 반드시 컨텍스트 clear() 이전에 수행해야 합니다.
-     */
-    private void submitAsync(HttpServletRequest originalReq, RequestWrapper wrappedReq, ResponseWrapper wrappedRes,
-                             long elapsedMs, String traceId, String spanId,
-                             TraceLevel capturedLevel, boolean capturedForceTrace) {
-
-        SqlTraceContext sqlSnapshot       = SqlTraceContextHolder.get();
-        List<BreadcrumbEvent> breadcrumbs = TraceContextHolder.getBreadcrumbs();
-        LogApiContext ctx                 = buildApiContext(originalReq, wrappedReq, wrappedRes, elapsedMs, null);
-
-        asyncQueue.offer(() -> {
-            try {
-                TraceContextHolder.restore(traceId, spanId, capturedLevel, capturedForceTrace, breadcrumbs);
-                SqlTraceContextHolder.set(sqlSnapshot);
-                logProcessor.process(ctx);
-            } finally {
-                SqlTraceContextHolder.clear();
-                TraceContextHolder.clear();
-            }
-        });
     }
 
     /**

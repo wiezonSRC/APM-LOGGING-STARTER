@@ -3,9 +3,7 @@ package com.company.logging.core.sql;
 import com.company.logging.core.config.LoggingProperties;
 import com.company.logging.core.context.TraceContextHolder;
 import com.company.logging.core.enums.LogMarker;
-import com.company.logging.core.metrics.MetricsHolder;
 import com.company.logging.core.support.sql.SQLUtil;
-import com.company.logging.core.support.util.SensitiveDataMasker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.ibatis.cache.CacheKey;
@@ -160,10 +158,6 @@ public class SqlTraceInterceptor implements Interceptor {
                 sqlId + " " + elapsed + "ms"
             );
 
-            // SQL 메트릭 기록 (MetricsHolder가 없으면 무시)
-            boolean isSlow = elapsed >= props.getSlow().getQuery().getMs();
-            MetricsHolder.recordSql(sqlId, elapsed, isError, isSlow);
-
             // N+1 감지: 동일 Mapper가 임계값에 딱 도달하는 시점에 한 번만 경고
             if (ctx != null) {
                 int callCount = ctx.incrementCallCount(sqlId);
@@ -234,7 +228,8 @@ public class SqlTraceInterceptor implements Interceptor {
 
     /**
      * 값을 로그에 적합한 문자열 형식으로 변환합니다.
-     * String 값은 카드번호·주민등록번호 등 민감정보 마스킹 후 출력합니다.
+     * 마스킹은 여기서 수행하지 않고, 렌더 시점(AbstractLogProcessor.logSqlDetails)에서
+     * log.security.masking-enabled 플래그에 따라 일괄 적용합니다(이중 마스킹 방지).
      */
     private String formatValue(Object value) {
         if (value == null) {
@@ -242,7 +237,7 @@ public class SqlTraceInterceptor implements Interceptor {
         }
 
         if (value instanceof String s) {
-            return "'" + SensitiveDataMasker.mask(s) + "'";
+            return "'" + s + "'";
         }
 
         if (value instanceof java.util.Date d) {

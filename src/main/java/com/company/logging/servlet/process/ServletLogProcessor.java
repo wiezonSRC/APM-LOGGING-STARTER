@@ -3,7 +3,6 @@ package com.company.logging.servlet.process;
 import com.company.logging.core.config.LoggingProperties;
 import com.company.logging.core.enums.LogMarker;
 import com.company.logging.core.enums.TraceLevel;
-import com.company.logging.core.metrics.MetricsHolder;
 import com.company.logging.core.process.AbstractLogProcessor;
 import com.company.logging.core.support.util.CommonUtil;
 import com.company.logging.core.support.util.SensitiveDataMasker;
@@ -91,8 +90,6 @@ public class ServletLogProcessor extends AbstractLogProcessor<LogApiContext> {
                     resBody
             );
         }
-
-        MetricsHolder.recordApi(ctx.getMethod(), ctx.getUri(), ctx.getElapsedMs(), isError);
 
         logSqlDetails(traceId, spanId, level, isError);
         logException(ctx, traceId, spanId);

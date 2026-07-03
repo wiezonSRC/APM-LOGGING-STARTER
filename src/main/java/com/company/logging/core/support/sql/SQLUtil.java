@@ -1,6 +1,5 @@
 package com.company.logging.core.support.sql;
 
-import com.company.logging.core.support.util.SensitiveDataMasker;
 import org.apache.ibatis.mapping.BoundSql;
 import org.apache.ibatis.mapping.MappedStatement;
 import org.apache.ibatis.mapping.ParameterMapping;
@@ -121,7 +120,9 @@ public class SQLUtil {
 
     /**
      * 값을 SQL 리터럴 형식으로 변환합니다. (예: 문자열은 따옴표로 감쌈)
-     * String 값은 카드번호·주민등록번호 등 민감정보 마스킹 후 출력합니다.
+     * 마스킹은 여기서 수행하지 않고, 렌더 시점(AbstractLogProcessor.logSqlDetails)에서
+     * log.security.masking-enabled 플래그에 따라 일괄 적용합니다(이중 마스킹 방지).
+     * 작은따옴표만 SQL 리터럴 escape 목적으로 이스케이프합니다.
      */
     private static String formatValue(Object value) {
         if (value == null) {
@@ -129,7 +130,7 @@ public class SQLUtil {
         }
 
         if (value instanceof String val) {
-            return "'" + SensitiveDataMasker.mask(val).replace("'", "''") + "'";
+            return "'" + val.replace("'", "''") + "'";
         }
 
         if (value instanceof LocalDateTime) {

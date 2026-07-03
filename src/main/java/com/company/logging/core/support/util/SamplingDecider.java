@@ -3,6 +3,8 @@ package com.company.logging.core.support.util;
 import com.company.logging.core.config.LoggingProperties;
 import com.company.logging.core.enums.TraceLevel;
 
+import java.util.concurrent.ThreadLocalRandom;
+
 public final class SamplingDecider {
 
     private SamplingDecider() {}
@@ -22,6 +24,6 @@ public final class SamplingDecider {
 
         double sampleRate = props.getCapture().getSampleRate();
 
-        return sampleRate > 0 && Math.random() < sampleRate;
+        return sampleRate > 0 && ThreadLocalRandom.current().nextDouble() < sampleRate;
     }
 }

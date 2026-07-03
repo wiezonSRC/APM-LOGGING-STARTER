@@ -14,7 +14,6 @@ public class LoggingProperties {
     private final Slow slow = new Slow();
     private final Limit limit = new Limit();
     private final Capture capture = new Capture();
-    private final Async async = new Async();
     private final Security security = new Security();
 
     /**
@@ -221,10 +220,6 @@ public class LoggingProperties {
         return capture;
     }
 
-    public Async getAsync() {
-        return async;
-    }
-
     public Security getSecurity() {
         return security;
     }
@@ -267,50 +262,4 @@ public class LoggingProperties {
         }
     }
 
-    public enum OverflowStrategy {
-        DROP, SYNC
-    }
-
-    /**
-     * 비동기 로그 처리 설정입니다.
-     * log.async.enabled=true 시 로깅 작업을 데몬 워커 스레드로 위임합니다.
-     */
-    public static class Async {
-        private boolean enabled = false;
-        private int queueSize = 8192;
-        private int threadCount = 1;
-        private OverflowStrategy overflowStrategy = OverflowStrategy.DROP;
-
-        public boolean isEnabled() {
-            return enabled;
-        }
-
-        public void setEnabled(boolean enabled) {
-            this.enabled = enabled;
-        }
-
-        public int getQueueSize() {
-            return queueSize;
-        }
-
-        public void setQueueSize(int queueSize) {
-            this.queueSize = queueSize;
-        }
-
-        public int getThreadCount() {
-            return threadCount;
-        }
-
-        public void setThreadCount(int threadCount) {
-            this.threadCount = threadCount;
-        }
-
-        public OverflowStrategy getOverflowStrategy() {
-            return overflowStrategy;
-        }
-
-        public void setOverflowStrategy(OverflowStrategy overflowStrategy) {
-            this.overflowStrategy = overflowStrategy;
-        }
-    }
 }
