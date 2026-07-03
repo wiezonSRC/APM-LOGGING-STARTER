@@ -1,2 +1,2 @@
-rootProject.name = 'logging-starter'
+rootProject.name = 'apm-logging-starter'
 include 'logging-starter-test'
